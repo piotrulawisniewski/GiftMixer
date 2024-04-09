@@ -10,11 +10,8 @@
 import mysql.connector
 import re
 
-
-
 # importing scripts
 import login # file with login, register and account management functions:
-
 print('\nWelcome to Gift Mixer!')
 print('A free tool that helps to split Christmas (and not only) wishes to people in group, to reduce consumption, save time and avoid pre-christmas gift-fever and headache :) \n ')
 
@@ -46,65 +43,3 @@ if __name__ == "__main__":
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-'''
-
-# connect to database
-
-db = mysql.connector.connect(
-    host ='localhost',
-    user = 'root',
-    password = 'ojapierdole!',
-    database = 'giftmixerdb'
-)
-cursor = db.cursor()
-cursor.execute('SHOW TABLES')
-
-for x in cursor:
-    print(x)
-
-
-'''
-
-
-
-
-
-
-
-
-
-
-
-
-
-#
-# from classes import User
-#
-#
-# user1 = User('Piotrek', 'piotrulawisniewski@gmail.com', 'alibaba123')
-# user2 = User('Andrzej', 'andrzejos@frankie.com', '1234')
-#
-# print(user1.userID)
-# print(user2.userID)
-#

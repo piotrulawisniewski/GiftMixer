@@ -6,6 +6,8 @@ import hashlib
 import re
 from getpass import getpass
 
+import classes
+
 user_details_filepath = 'users.txt'
 special_characters = "!@#$%^&*()'\",./<>?{[]}"
 default_password_lenght = 16
@@ -26,6 +28,7 @@ def generate_password(length=16):
         ):
             break
     return password
+
 
 def user_input_password():
     """FUNCTION: password set by User
@@ -203,9 +206,9 @@ def register():
             print('Choose [A] or [B].')
 
     passwd = set_password(passwd_set_mode) # launching chosen password input option
-
     hashed_passwd = hash_password(passwd)
     save_user(userMail, hashed_passwd)
+
 
     print('User account created successfully!')
     print('Your password is: ', passwd)
