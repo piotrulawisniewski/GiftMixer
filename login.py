@@ -1,14 +1,28 @@
 # Login section
 
+# libs & modules
 import secrets
 import string
 import hashlib
 import re
+# import mysql.connector
+# import os
+# import configparser
+# import datetime
+import sys
+
 from getpass import getpass
 
+# my modules:
 import classes
+import functions
+import database
 
-user_details_filepath = 'users.txt'
+# connection to database:
+database.database_creation()
+db_connection = database.db_switch_on()
+cursor = db_connection.cursor()
+
 special_characters = "!@#$%^&*()'\",./<>?{[]}"
 default_password_lenght = 16
 
@@ -29,13 +43,11 @@ def generate_password(length=16):
             break
     return password
 
-
 def user_input_password():
     """FUNCTION: password set by User
         :param None
         :return password
         """
-
     user_password_prompt = "\nInput own password (type [H] to see rules for password or [A] for auto-generate password) \nYour password: "
     user_password_help_prompt = "Password lenght must be between 8 and 16 characters.\nPassword needs to contain at least one: lowercase letter, uppercase letter, number, special character.\nYou can type 'A' for auto-generate password. \nYour password: "
     password = input(user_password_prompt)
@@ -61,28 +73,23 @@ def set_password(passwd_provider):
         :param passwd_provider- A-automatic or U-by user
         :return password
         """
-
     if passwd_provider.strip().upper() == "A":
         passwd = generate_password(default_password_lenght) # launching auto-generate password function
     elif passwd_provider.strip().upper() == "U":
         passwd = user_input_password() # launching function for typing password by user
     return passwd
 
-
 def hash_password(passwd):
     """FUNCTION: hashes a password using SHA-256 algorithm
-            :param passwd_provider- A-automatic or U-by user
-            :return password
+            :param passwd
+            :return hashed password
             """
-
     passwd_bytes = passwd.encode('utf-8')
     hashed_passwd = hashlib.sha256(passwd_bytes).hexdigest()
     return hashed_passwd
 
-
 """
 Add salt before hashing function:
-
 
 import hashlib
 import os
@@ -122,7 +129,6 @@ if verify_password(stored_hashed_password, input_password, stored_salt):
     print("Password is correct!")
 else:
     print("Password is incorrect!")
-
 """
 
 def save_user(userMail, hashed_passwd):
@@ -130,11 +136,23 @@ def save_user(userMail, hashed_passwd):
             :param userMail, hashed_passwd
             :return None
             """
-    with open(user_details_filepath, "a") as f:
-        f.write(f'{userMail} {hashed_passwd}\n')
 
-    # change the saving user-details into "safe place"
+# passing data to database
+    cursor.execute(f"INSERT INTO users(userMail, created_at_pyTimestamp, modified_at_pyTimestamp, \
+    UTC_created_at_pyTimestamp, UTC_modified_at_pyTimestamp ) VALUES ('{userMail}', \
+    '{functions.py_local_timestamp()}','{functions.py_local_timestamp()}','{functions.py_utc_timestamp()}', '{functions.py_utc_timestamp()}')")
+    db_connection.commit()
 
+# getting userID from users table
+    cursor.execute(f"SELECT userID FROM users WHERE userMail='{userMail}'")
+    idFromDB=cursor.fetchone()[0]
+
+# passing data to passwords table
+    if idFromDB:
+        cursor.execute(f"INSERT INTO passwords (userID, userPassword, created_at_pyTimestamp, modified_at_pyTimestamp, UTC_created_at_pyTimestamp, UTC_modified_at_pyTimestamp) VALUES ('{idFromDB}', '{hashed_passwd}', '{functions.py_local_timestamp()}', '{functions.py_local_timestamp()}', '{functions.py_utc_timestamp()}', '{functions.py_utc_timestamp()}')")
+        db_connection.commit()
+    else:
+        print("This should never be displayed xD")
 
 def user_exists (userMail):
     """FUNCTION: function checks if user with a specific mail exists
@@ -142,43 +160,41 @@ def user_exists (userMail):
                 :return T/F
                 """
     try:
-        with open(user_details_filepath, 'r') as f:
-            for line in f:
-                parts = line.split()
-                if parts[0] == userMail:
-                    return True
-    except FileNotFoundError as fl_err:
-        print(f'{fl_err.args[-1]}: {user_details_filepath}')
+        cursor.execute("SELECT userMail FROM users")
+        db_fetch = cursor.fetchall()
+        db_userMails = [row[0] for row in db_fetch]
+        if userMail in db_userMails:
+            return True
+        else:
+            return False
+    except:
+        print("Something goes wrong", sys.exc_info()[0])
     return False
-
 
 def authenticate_user(userMail, passwd):
     """FUNCTION: function checks if the specified password matches the hashed password stored in file/database
                 :param userMail, password
                 :return T/F
                 """
-    with open(user_details_filepath, 'r') as f:
-        for line in f:
-            parts = line.split()
-            if parts[0] == userMail:
-                hashed_passwd = parts[1]
-                if hashed_passwd == hash_password(passwd):
-                    return True
-                else:
-                    return False
-    return False
 
+    cursor.execute(f"SELECT userPassword FROM passwords WHERE userID = \
+                    (SELECT userID FROM users WHERE userMail = '{userMail}')")
+    fetched_password = cursor.fetchone()[0]
+    if fetched_password == hash_password(passwd):
+        return True
+    else:
+        return False
+    return False
 
 def valid_email(address):
     """FUNCTION: checking if email is correct
-           :param email adress
+           :param address
            :return boolean
            """
     valid_email_regex = r'^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$'
     if not re.search(valid_email_regex, address):
         return False
     return True
-
 
 def register():
     """FUNCTION: new user registration
@@ -190,7 +206,7 @@ def register():
     while True:  # passes only email with correct syntax
         userMail = input('Your email: ')
         if valid_email(userMail) == False:
-            print('e-mail incorrect. Please enter a valid email adress.')
+            print('e-mail incorrect. Please enter a valid email address.')
         else:
             break
 
@@ -209,20 +225,9 @@ def register():
     hashed_passwd = hash_password(passwd)
     save_user(userMail, hashed_passwd)
 
-
     print('User account created successfully!')
     print('Your password is: ', passwd)
 
-
-    """   
-    [1] Future: replace checking if email is in database for sending 6 (or 8) digit code sent to mail.
-    It is safer cause it never shows to third party if such account exists.  
-      
-    [2] Future: add activate link sent to mail while registering new user
-    
-    [3] Future: add password replace option- and sending first password to mail instead showing it in terminal.
-    
-    """
 
 def login():
     """FUNCTION: user login function
@@ -243,6 +248,25 @@ def login():
                 break
         print('Log in passed!')
 
+def main():
+
+
+    while True:
+        print('\n[1] Sign in \n[2] Register \n[3] Exit')
+        program_mode = input('Choose mode : ')
+        if program_mode.strip() == '1':    # login for existing users
+            login() # launching login function
+        elif program_mode.strip() == '2':  # register new user
+            register() # launching register function
+        elif program_mode.strip() == '3':  # exits the program
+
+            print("Thank you for using GiftMixer! See you soon! :)\nPlease invite your friends to our service!\nwww.giftmixer.eu")
+            break
+        else:
+            print("Wrong input- choose option 1, 2 or 3.\n")
+
+if __name__ == "__main__":
+    main()
 
 
 
@@ -254,3 +278,15 @@ def login():
 
 
 
+
+# FUTURE IMPROVEMENTS:
+
+"""   
+[1] Future: replace checking if email is in database for sending 6 (or 8) digit code sent to mail.
+It is safer cause it never shows to third party if such account exists.  
+
+[2] Future: add activate link sent to mail while registering new user
+
+[3] Future: add password replace option- and sending first password to mail instead showing it in terminal.
+
+"""
