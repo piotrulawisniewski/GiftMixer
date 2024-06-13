@@ -1,15 +1,15 @@
 #GiftMixer project
-#R32NOR|anklebiters
+#R32NOR | anklebiters.
 #2024
 
 ### FUNCTIONS ###
 # all general functions
 
-
 # libs & modules
 
 import datetime
 import tzlocal
+import random
 
 # Local time Timestamp function for quick get current time for saving
 def py_local_timestamp():
@@ -29,6 +29,14 @@ def py_utc_timestamp():
            """
     utc_timestamp = datetime.datetime.now(datetime.timezone.utc)
     return utc_timestamp
+
+
+def simple_passwd():
+
+    print('12345678: this function will be changed')
+
+
+
 
 
 
