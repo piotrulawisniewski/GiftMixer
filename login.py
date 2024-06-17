@@ -241,29 +241,31 @@ def login():
     userMail = input("Enter user e-mail: ")
     if not user_exists(userMail):
         print('User does not exist.')
-        return
+        return False
     else:
         while True:
             passwd = getpass("Password: ")
             if not authenticate_user(userMail, passwd):
                 print("Password incorrect.")
             elif authenticate_user(userMail, passwd):
-                cursor.execute(f"SELECT userID FROM users WHERE userMail='{userMail}'")
-                userID = cursor.fetchone()[0]
                 break
         print('Log in passed!')
-        return userID
+        cursor.execute(f"SELECT userID FROM users WHERE userMail = '{userMail}'")
+        current_userID = cursor.fetchone()[0]
+        return current_userID
 
 
 # main login/registration function:
 def main():
-
     while True:
         print('\n[1] Sign in \n[2] Register \n[3] Exit')
-        program_mode = input('Choose mode : ')
+        program_mode = input('Choose mode: ')
         if program_mode.strip() == '1':    # login for existing users
-            userID = login() # launching login function
-            return userID
+            loginReturn = login()
+            if loginReturn != False:
+                return loginReturn
+            # break
+
         elif program_mode.strip() == '2':  # register new user
             register() # launching register function
         elif program_mode.strip() == '3':  # exits the program
@@ -273,6 +275,34 @@ def main():
             break
         else:
             print("Wrong input- choose option 1, 2 or 3.\n")
+
+
+'''
+def main():
+
+    while True:
+        print('\n[1] Sign in \n[2] Register \n[3] Exit')
+        program_mode = input('Choose mode: ')
+        
+
+        if program_mode.strip() == '1':    # login for existing users
+            login()
+            # cursor.execute(f"SELECT userID FROM users WHERE userMail='{userMail}'")
+            # userID = cursor.fetchone()[0]
+
+            #return userID
+        elif program_mode.strip() == '2':  # register new user
+            register() # launching register function
+        elif program_mode.strip() == '3':  # exits the program
+            database.db_switch_off(db_connection, cursor)
+            print("Thank you for using GiftMixer! See you soon! :)\nPlease invite your friends to our service!\nwww.giftmixer.eu")
+            # getting userID from users table
+            break
+        else:
+            print("Wrong input- choose option 1, 2 or 3.\n")
+            '''
+
+
 
 
 if __name__ == "__main__":
@@ -298,5 +328,7 @@ It is safer cause it never shows to third party if such account exists.
 [2] Future: add activate link sent to mail while registering new user
 
 [3] Future: add password replace option- and sending first password to mail instead showing it in terminal.
+
+[4] Change the user_exist function- to not show if chosen mail exists or not. Let user input mail and password- then finally return information that mail or password is wrong.
 
 """

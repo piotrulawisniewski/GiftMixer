@@ -9,12 +9,14 @@
 # importing libraries / general modules
 
 import re
-
+import json
 import mysql.connector
 from mysql.connector import errorcode
 
 import classes
 import database
+
+
 # importing scripts
 import login # script with login, register and account management functions:
 
@@ -41,28 +43,35 @@ while not  userNick:
     except mysql.connector.IntegrityError as err:
         if err.errno == errorcode.ER_DUP_ENTRY:
             print('Chosen nick has been already occupied. Please choose another one.')
-
 else:
-    print(f'Hi {userNick}')
+    print(f'Hi {userNick},')
 
 # setting User object:
 UserObj = classes.User(userID)
 
-
 # setting new group:
 def set_group(userID):
     """FUNCTION: set new instance of Group class, and saving data to
-                :param userMail, hashed_passwd
-                :return None
+                :param userID
+                :return newGroup object
                 """
-
     print('You are creating new group, that your friends can join further.')
-    
+    newGroupName = input ('Give a name to your group: ')
+    # new Group object
+    newGroup = classes.Group(newGroupName, userID)
+    newGroup.price_limit = input("What is maximum price of gift? (don't set if you want to): ")
+    newGroup.deadline = input("What is the last call date for others to input gift propositions (YYYY-MM-DD hh:mm:ss  24h format): ")
+    newGroup.place = input("Where gifts will be placed/exchanged?: ")
+    newGroup.remarks = input("Any additional information for the group members: ")
 
+    # Saving object attributes
+    cursor.execute(f"INSERT INTO groups_table(groupName, password, adminID, price_limit, deadline, place, remarks) \
+    VALUES ('{newGroup.groupName}', '{newGroup.password}', '{newGroup.adminID}',\
+    '{newGroup.price_limit}', '{newGroup.deadline}', '{newGroup.place}', '{newGroup.remarks}')  ")
 
-
-
-
+    db_connection.commit()
+    cursor.execute(f"SELECT groupID FROM groups_table WHERE groupName='{newGroup.groupName}'")
+    newGroup.groupID = cursor.fetchone()[0]
 
 
 
@@ -73,19 +82,17 @@ def main_menu():
         print('\n[1] Set new group \n[2] MyGroups \n[3] My Account')
         program_mode = input('Choose mode : ')
         if program_mode.strip() == '1':    # starting new group
-
-        elif program_mode.strip() == '2':  # showing current groups
-
-        elif program_mode.strip() == '3':  # Settings
-
-
+            set_group(userID)
+        # elif program_mode.strip() == '2':  # showing current groups
+        #
+        # elif program_mode.strip() == '3':  # Settings
 
         else:
             print("Wrong input- choose option 1, 2 or 3.\n")
 
 
-
-
+if __name__ == "__main__":
+    main_menu()
 
 
 

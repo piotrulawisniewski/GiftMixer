@@ -10,6 +10,13 @@ import secrets
 import string
 
 
+import database
+
+#connection to database
+if __name__ == "__main__":
+    db_connection = database.db_switch_on()
+    cursor = db_connection.cursor()
+
 
 # time variables for time stamping
 
@@ -40,13 +47,13 @@ class User:
 
 class Group:
     def __init__(self, groupName, adminID):
+
         self.groupID = ''
         self.groupName = groupName
         self.password = ''.join(secrets.choice(string.digits) for i in range(6))
         self.adminID = adminID
         self.members = []
         self.price_limit = ''
-        self.currency = ''
         self.deadline = ''
         self.place = ''
         self.remarks = ''

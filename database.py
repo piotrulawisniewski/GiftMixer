@@ -70,7 +70,7 @@ def db_switch_on():
 # Function for turn on connection to database":
 def db_switch_off(db_connection, cursor):
     """FUNCTION: turn off connection to database
-           :param current cursor, database connection
+           :param cursor, database connection
            :return none
            """
     db_connection.commit()  # Confirming changes into database- just in case ;)
@@ -103,42 +103,53 @@ def creating_tables(db_connection, cursor):
     # Creating passwords table in database for contain users data
     try:
         cursor.execute("CREATE TABLE passwords (\
-                       userID INT NOT NULL,\
-                       userPassword VARCHAR(255) NOT NULL,\
-                       created_at_dbTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\
-                       modified_at_dbTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\
-                       created_at_pyTimestamp DATETIME,\
-                       modified_at_pyTimestamp DATETIME,\
-                       UTC_created_at_pyTimestamp DATETIME,\
-                       UTC_modified_at_pyTimestamp DATETIME,\
-                       PRIMARY KEY(userID)\
-                       )"
+                               userID INT unsigned,\
+                               userPassword VARCHAR(255) NOT NULL,\
+                               created_at_dbTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\
+                               modified_at_dbTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\
+                               created_at_pyTimestamp DATETIME,\
+                               modified_at_pyTimestamp DATETIME,\
+                               UTC_created_at_pyTimestamp DATETIME,\
+                               UTC_modified_at_pyTimestamp DATETIME,\
+                               PRIMARY KEY (userID),\
+                               FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE);"
                        )
+
     except:
         pass
+
 
     # Creating groups table in database for contain groups
     try:
-        cursor.execute("CREATE TABLE groups1 (\
+        cursor.execute("CREATE TABLE groups_table (\
                        groupID INT unsigned NOT NULL AUTO_INCREMENT,\
-                       groupName VARCHAR(50) NOT NULL,\
+                       groupName VARCHAR(50) NOT NULL UNIQUE,\
                        password VARCHAR(100),\
-                       members VARCHAR(255),\
-                       price_limit INT, \
-                       currency VARCHAR (20), \
+                       adminID INT unsigned, \
+                       price_limit VARCHAR(50), \
                        deadline DATETIME NOT NULL, \
                        place VARCHAR(120), \
                        remarks VARCHAR(255),\
-                       PRIMARY KEY(groupID)\
-                       ) AUTO_INCREMENT = 200000000"
+                       PRIMARY KEY(groupID),\
+                       FOREIGN KEY (adminID) REFERENCES users(userID) ON DELETE SET NULL\
+                       ) AUTO_INCREMENT = 200000000;"
                        )
     except:
         pass
+
+    cursor.execute("\
+    CREATE TABLE IF NOT EXISTS group_members( \
+    groupID INT unsigned,\
+    userID INT unsigned,\
+    gift_1 JSON,\
+    gift_2 JSON,\
+    gift_3 JSON,\
+    PRIMARY KEY (groupID, userID),\
+    FOREIGN KEY (groupID) REFERENCES groups_table (groupID),\
+    FOREIGN KEY (userID) REFERENCES users (userID)\
+    )")
+
     db_connection.commit()
-
-
-
-
 
 
 # Functions calling
@@ -155,5 +166,12 @@ if __name__ == "__main__":
 
 
 
+# FUTURE IMPROVEMENTS:
+
+'''
+[1] rewrite all database stuff using SQLAlchemy
+
+
+'''
 
 
