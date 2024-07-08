@@ -11,14 +11,19 @@
 import re
 import json
 import mysql.connector
+import datetime
 from mysql.connector import errorcode as err
 
-import classes
-import database
+
 
 
 # importing scripts
 import login # script with login, register and account management functions:
+import classes
+import database
+import functions
+
+
 
 print('\nWelcome to Gift Mixer!')
 print('A free tool that helps to split Christmas (and not only) wishes to people in group, to reduce consumption, save time and avoid pre-christmas gift-fever and headache :) \n ')
@@ -199,7 +204,6 @@ def my_groups(userID):
     # Entering group that user wants to operate in:
     enter_the_group(userID, allGroups, chosenGroup)
 
-
 # Enter the group function:
 def enter_the_group(userID, allGroups, chosenGroup):
     """FUNCTION: function for create instance of the class and assign values from db to class attribute
@@ -231,9 +235,9 @@ def enter_the_group(userID, allGroups, chosenGroup):
         group_object.PIN = groupData[2]
         group_object.members = groupMembers
         group_object.price_limit = groupData[4]
-        group_object.deadline = groupData[5]
-        group_object.place = groupData[6]
-        group_object.meetingDate = groupData[7]
+        group_object.place = groupData[5]
+        group_object.meetingDate = groupData[6]
+        group_object.deadline = groupData[7]
         group_object.remarks = groupData[8]
 
         # fetching group admin nick from db
@@ -255,7 +259,7 @@ def enter_the_group(userID, allGroups, chosenGroup):
                     n+=1
                 else:
                     pass
-            print(f"\nPlace of meeting:{group_object.place},\nDate of meeting: {group_object.meetingDate} \nPrice limit for gift is: {group_object.price_limit}.")
+            print(f"\nPrice limit for gift is: {group_object.price_limit}\nPlace of meeting: {group_object.place},\nDate of meeting: {group_object.meetingDate},\nLast call for pushing wishlist: {group_object.deadline}")
             print(f"Additional info from group manager: \n{group_object.remarks}\n")
 
         group_info_display() # call the function
@@ -264,11 +268,19 @@ def enter_the_group(userID, allGroups, chosenGroup):
         giftsIn = gifts_added_check(userID, group_object.groupID)
 
         if giftsIn[0] == True:  # If list of gift is stated in the group- than user can see or edit it.
-            group_operations_for_users(group_object.groupID, userID)
+            group_operations(group_object, userID)
 
         else: # If list of gifts has not been stated- than user has to declaire it:
-            print("ADD A QUESTION- DO YOU WANT TO ADD GIFT LIST?")
-            add_gifts(userID, group_object.groupID )
+            prompt3 = "Do you want to add gift list now? (y/n): "
+            addNow = input(prompt3)
+            if addNow.strip().lower() == 'y':
+                add_gifts(userID, group_object.groupID )
+            elif addNow.strip().lower() == "n":
+                return None
+            else:
+                print("Wrong input- try again.")
+
+
     else:
         print("You are not a member of chosen group.")
 
@@ -367,11 +379,15 @@ def more_gifts_question():
             print("Wrong input- try again.")
 
 # GROUP OPERATIONS (if wish list already stated)
-def group_operations_for_users(groupID, userID):
+def group_operations(group_object, userID, adminMode=False):
     """FUNCTION: function for operate on gifts that are stated in group
                 :param group ID, user ID, gift list (list of jsons fetched from db)
                 :return
                 """
+
+    # ensure editmode is a boolean
+    if not isinstance(adminMode, bool):
+        raise ValueError("The parameter 'adminMode' must be a boolean value.")
 
     while True:
         print("\nOPTIONS:")
@@ -381,7 +397,7 @@ def group_operations_for_users(groupID, userID):
         if program_mode.strip() == '1':    # see gift list
             print("\nYour wishes:")
             # fetching current gift list from db
-            cursor.execute(f"SELECT gift_1, gift_2, gift_3 FROM group_members WHERE groupID = {groupID} AND userID = {userID}")
+            cursor.execute(f"SELECT gift_1, gift_2, gift_3 FROM group_members WHERE groupID = {group_object.groupID} AND userID = {userID}")
             db_fetch = cursor.fetchone()
             giftListJSON = [i for i in db_fetch]
             n = 1
@@ -396,25 +412,38 @@ def group_operations_for_users(groupID, userID):
                 n+=1
 
         elif program_mode.strip() == '2':    # edit gift list
+            currentLocalTime_offsetAware = functions.py_local_timestamp()
+            currentLocalTime_offsetNaive = datetime.datetime.now()
+
+            print(currentLocalTime_offsetAware)
+            print(currentLocalTime_offsetNaive)
+
+            print(group_object.deadline)
+            if currentLocalTime_offsetNaive > group_object.deadline:
+                print("TOO LATE TOO LATE!")
+            else:
+                print("NOT TOO LATE")
+
 
             print("PAMIĘTAJ O DODANIU WARUNKU Z DATĄ (PRZEKROCZENIE DEADLINE)")
+            # check if current date is before deadline
 
             print("Now you will edit your wishes.")
-            typeOfEdit = input("\nPress [A] for change all gifts or [S] for change gifts one by one: ")
+            typeOfEdit = input("\nPress [a] for change all gifts or [s] for change gifts one by one: ")
             while True:
                 # user wants to overwrite gift list- we run add_gifts function but in edit mode
-                if typeOfEdit.strip().upper() == 'A':
-                    add_gifts(userID, groupID, editmode = True)
+                if typeOfEdit.strip().lower() == 'a':
+                    add_gifts(userID, group_object.groupID, editmode = True)
                     break
 
                 # editing list one by one
-                elif typeOfEdit.strip().upper() == 'S':
+                elif typeOfEdit.strip().lower() == 's':
                     print("\nYou'll be changing gift in the wish list one by one.")
 
                     db_gifts_columns = ['gift_1', 'gift_2', 'gift_3']  # list with column where gifts are contained
                     # fetching current gift list from db
                     clause = ", ".join([f"{db_gifts_columns[i]}" for i in range(len(db_gifts_columns))])
-                    cursor.execute(f"SELECT {clause} FROM group_members WHERE groupID = %s AND userID = %s", (groupID, userID))
+                    cursor.execute(f"SELECT {clause} FROM group_members WHERE groupID = %s AND userID = %s", (group_object.groupID, userID))
                     db_fetch = cursor.fetchone()
                     giftListJSON = [i for i in db_fetch]  # list with gifts in json format fetched from db
                     gifts = []  # list to contain gift objects
@@ -429,7 +458,7 @@ def group_operations_for_users(groupID, userID):
                             print(f"Gift no. {n + 1}. name: {gift_instance.name:<20}Gift description: {gift_instance.description}")
 
                             # asking if user wants to change this gift:
-                            prompt = "Do you want to replace this gift? Press 'y' if yes, 'd' for erase this wish. Press ENTER if you want to leave this gift: "
+                            prompt = "Do you want to replace this gift? Press [y] if yes, [d] for erase this wish. Press ENTER if you want to leave this gift: "
                             goFurther = input(prompt)
                             while True:
                                 if goFurther == "":
@@ -467,7 +496,7 @@ def group_operations_for_users(groupID, userID):
                     # check if there is no empty list
                     if len(gifts) == 0:
                         print("Your gift list is empty. Please set up at least one gift :) ")
-                        add_gifts(userID, groupID, editmode=True)
+                        add_gifts(userID, group_object.groupID, editmode=True)
                         break
 
                     # loop for adding empty positions to list
@@ -486,7 +515,7 @@ def group_operations_for_users(groupID, userID):
                     # preparing sql query
                     set_clauses = ", ".join([f"{db_gifts_columns[i]} = %s" for i in range(len(gifts_jsons))])
                     sql_query = f"UPDATE group_members SET {set_clauses} WHERE groupID = %s AND userID = %s;"
-                    params = gifts_jsons + [groupID, userID]
+                    params = gifts_jsons + [group_object.groupID, userID]
                     cursor.execute(sql_query, params)
                     db_connection.commit()
                     break

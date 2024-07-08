@@ -1,0 +1,8 @@
+  
+
+
+
+File "S:\01Repos\ownProjects\GiftMixer\main.py", line 418, in group_operations
+    if currentLocalTime > group_object.deadline:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: can't compare offset-naive and offset-aware datetimes
