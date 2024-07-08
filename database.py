@@ -10,6 +10,7 @@ import configparser
 import os
 import mysql.connector
 
+
 # pass data are in file under filepath: ~/config/ignored/passdata.ini, to cover sensitive data
 config_file_path = os.path.expanduser("config/ignored/passdata.ini")
 # parse the configuration file
@@ -114,22 +115,22 @@ def creating_tables(db_connection, cursor):
                                PRIMARY KEY (userID),\
                                FOREIGN KEY (userID) REFERENCES users(userID) ON DELETE CASCADE);"
                        )
-
     except:
         pass
-
 
     # Creating groups table in database for contain groups
     try:
         cursor.execute("CREATE TABLE groups_table (\
                        groupID INT unsigned NOT NULL AUTO_INCREMENT,\
                        groupName VARCHAR(50) NOT NULL UNIQUE,\
-                       password VARCHAR(100),\
+                       groupPIN VARCHAR(100),\
                        adminID INT unsigned, \
                        price_limit VARCHAR(50), \
+                       place VARCHAR(150), \
+                       meetingDate DATETIME NOT NULL, \
                        deadline DATETIME NOT NULL, \
-                       place VARCHAR(120), \
                        remarks VARCHAR(255),\
+                       usersFinished INT,\
                        PRIMARY KEY(groupID),\
                        FOREIGN KEY (adminID) REFERENCES users(userID) ON DELETE SET NULL\
                        ) AUTO_INCREMENT = 200000000;"
@@ -141,6 +142,7 @@ def creating_tables(db_connection, cursor):
     CREATE TABLE IF NOT EXISTS group_members( \
     groupID INT unsigned,\
     userID INT unsigned,\
+    groupName VARCHAR(50) NOT NULL,\
     gift_1 JSON,\
     gift_2 JSON,\
     gift_3 JSON,\
@@ -159,6 +161,7 @@ if __name__ == "__main__":
     cursor = db_connection.cursor()
     creating_tables(db_connection, cursor)
     db_switch_off(db_connection, cursor)
+
 
 
 

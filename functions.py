@@ -3,13 +3,13 @@
 #2024
 
 ### FUNCTIONS ###
-# all general functions
+# all general purpose functions
 
 # libs & modules
 
 import datetime
 import tzlocal
-import random
+
 
 # Local time Timestamp function for quick get current time for saving
 def py_local_timestamp():
@@ -31,9 +31,7 @@ def py_utc_timestamp():
     return utc_timestamp
 
 
-def simple_passwd():
 
-    print('12345678: this function will be changed')
 
 
 

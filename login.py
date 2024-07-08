@@ -26,7 +26,7 @@ database.creating_tables(db_connection, cursor)
 
 
 
-special_characters = "!@#$%^&*()'\",./<>?{[]}"
+special_characters = "!@#$%^&*(),./<>?"
 default_password_lenght = 16
 
 def generate_password(length=16):
@@ -62,9 +62,9 @@ def user_input_password():
             and any(c in special_characters for c in password)
         ):
             break
-        elif password.strip().upper() =='H':
+        elif password.strip().upper() == 'H':
             password = input(user_password_help_prompt)
-        elif password.strip().upper() =='A':
+        elif password.strip().upper() == 'A':
             password = generate_password(default_password_lenght)
         else:
             print('Password incorrect.\nTry again.\n')
@@ -238,13 +238,13 @@ def login():
            :return None
            """
 
-    userMail = input("Enter user e-mail: ")
+    userMail = 'c@c.pl' #input("Enter user e-mail: ")
     if not user_exists(userMail):
         print('User does not exist.')
         return False
     else:
         while True:
-            passwd = getpass("Password: ")
+            passwd = 'S,!Rl("9zp<8xD"2' #getpass("Password: ")
             if not authenticate_user(userMail, passwd):
                 print("Password incorrect.")
             elif authenticate_user(userMail, passwd):
@@ -269,53 +269,17 @@ def main():
         elif program_mode.strip() == '2':  # register new user
             register() # launching register function
         elif program_mode.strip() == '3':  # exits the program
-            database.db_switch_off(db_connection, cursor)
-            print("Thank you for using GiftMixer! See you soon! :)\nPlease invite your friends to our service!\nwww.giftmixer.eu")
+            try:
+                database.db_switch_off(db_connection, cursor)
+            finally:
+                print("Thank you for using GiftMixer! See you soon! :)\nPlease invite your friends to our service!\nwww.giftmixer.eu")
             # getting userID from users table
             break
         else:
             print("Wrong input- choose option 1, 2 or 3.\n")
-
-
-'''
-def main():
-
-    while True:
-        print('\n[1] Sign in \n[2] Register \n[3] Exit')
-        program_mode = input('Choose mode: ')
-        
-
-        if program_mode.strip() == '1':    # login for existing users
-            login()
-            # cursor.execute(f"SELECT userID FROM users WHERE userMail='{userMail}'")
-            # userID = cursor.fetchone()[0]
-
-            #return userID
-        elif program_mode.strip() == '2':  # register new user
-            register() # launching register function
-        elif program_mode.strip() == '3':  # exits the program
-            database.db_switch_off(db_connection, cursor)
-            print("Thank you for using GiftMixer! See you soon! :)\nPlease invite your friends to our service!\nwww.giftmixer.eu")
-            # getting userID from users table
-            break
-        else:
-            print("Wrong input- choose option 1, 2 or 3.\n")
-            '''
-
-
-
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
 
 
 

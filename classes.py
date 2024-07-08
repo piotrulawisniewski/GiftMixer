@@ -8,6 +8,7 @@ import datetime
 import tzlocal
 import secrets
 import string
+import json
 
 
 import database
@@ -46,17 +47,28 @@ class User:
 # userTemp = User(userName='', userMail='', userPassword='')
 
 class Group:
-    def __init__(self, groupName, adminID):
+    def __init__(self,groupName, adminID):
 
         self.groupID = ''
         self.groupName = groupName
-        self.password = ''.join(secrets.choice(string.digits) for i in range(6))
+        self.PIN = ''.join(secrets.choice(string.digits) for i in range(6))
         self.adminID = adminID
         self.members = []
         self.price_limit = ''
-        self.deadline = ''
         self.place = ''
+        self.meetingDate = ''
+        self.deadline = ''
         self.remarks = ''
+        self.usersFinished = 0
+
+class Gift:
+    def __init__(self, name, description):
+        self.name = name
+        self.description = description
+
+
+
+
 
 
 
