@@ -1,5 +1,5 @@
 # #GiftMixer project
-# #R32NOR | anklebiters.
+# #R32NOR | anklebyters.
 # #2024
 
 # """GiftMixer is a script that helps to split Christmas wishes to people in group.
@@ -13,8 +13,8 @@ import json
 import mysql.connector
 import datetime
 from mysql.connector import errorcode as err
-
-
+import random
+import smtplib
 
 
 # importing scripts
@@ -22,7 +22,6 @@ import login # script with login, register and account management functions:
 import classes
 import database
 import functions
-
 
 
 print('\nWelcome to Gift Mixer!')
@@ -54,7 +53,7 @@ else:
 # setting User object:
 UserObj = classes.User(userID)
 
-# OPTION 1: New group setting: #########################################################################
+# OPTION 1: New group setting: #########################################################################################
 
 # UPDATE: add try-execpt to avoid wrong input error during setting new group
 def set_group(userID):
@@ -88,7 +87,7 @@ def set_group(userID):
     db_connection.commit()
 
 
-# OPTION 2: joining to group #########################################################################
+# OPTION 2: joining to group ###########################################################################################
 
 def join_to_group(userID):
     """FUNCTION: function that joins user to group
@@ -149,7 +148,7 @@ def verify_PIN(groupID, groupName):
         print("PIN incorrect. Try again.")
 
 
-# OPTION 3: My Groups operations: #########################################################################
+# OPTION 3: My Groups operations: ######################################################################################
 def my_groups(userID):
     """FUNCTION: function that enters the group management menu
                 :param userID
@@ -197,7 +196,8 @@ def my_groups(userID):
     # Choosing the group number that user want to operate in:
     while True:
         try:
-            chosenGroup = int(input("\nChoose the group number to see group details:\n"))
+            # chosenGroup = int(input("\nChoose the group number to see group details:\n"))
+            chosenGroup = 200000007
             break
         except ValueError:
             print("Incorrect value.")
@@ -332,12 +332,6 @@ def add_gifts(userID, groupID, editmode=False):
             if proceed == True:
                 pass
             else:
-                # if user don't want to push another wishes- then below loop fills the lists with empty positions
-                # this is for using that function again when user want to edit all gifts
-                gift = None
-                for position in range (n,3):
-                    gifts.append(gift)  # contain object in list
-                    gifts_jsons.append(gift)  # contain json in list
                 break
         else: # for n=0
             pass
@@ -349,16 +343,23 @@ def add_gifts(userID, groupID, editmode=False):
         gift_json = json.dumps(gift.__dict__) # serialize object attributes in JSON notation
         gifts_jsons.append(gift_json) # contain json in list
 
-    # preparing sql query
+    # preparing sql query to pass wishlist to db
     set_clauses = ", ".join([f"{db_gifts_columns[i]} = %s" for i in range(len(gifts_jsons))])
     sql_query = f"UPDATE group_members SET {set_clauses} WHERE groupID = %s AND userID = %s;"
     params = gifts_jsons + [groupID, userID]
-
     cursor.execute(sql_query, params)
+
+    # check for number of gifts (
+
+    # update number of gifts in group_members table in db
+    query = "UPDATE group_members SET number_of_gifts = %s WHERE groupID = %s AND userID = %s;"
+    cursor.execute(query, (len(gifts), groupID, userID))
 
     # increase the number of users that pushes gift list to group:
     if not editmode:
-        cursor.execute("UPDATE groups_table SET usersFinished = usersFinished + 1  WHERE groupID = %s", (groupID,))
+        # increase the number of users that pushes gift list to group:
+        cursor.execute("UPDATE groups_table SET usersFinished = usersFinished + 1  WHERE groupID = %s;", (groupID,))
+
     db_connection.commit()
 
 # function to ask user to continue gifts adding
@@ -385,13 +386,18 @@ def group_operations(group_object, userID, adminMode=False):
                 :return
                 """
 
+    adminMode = True if userID == group_object.adminID else False
     # ensure editmode is a boolean
     if not isinstance(adminMode, bool):
         raise ValueError("The parameter 'adminMode' must be a boolean value.")
 
     while True:
         print("\nOPTIONS:")
-        print("[1] Preview gift list \n[2] Edit gift list \n[3] Exit group")
+        # Displaying varies prompt in case user is admin or not.
+        if adminMode == True:
+            print("[1] Preview gift list \n[2] Edit gift list \n[3] Run Gift Mixer! \n[e] Exit to Main Menu")
+        else:
+            print("[1] Preview gift list \n[2] Edit gift list \n[e] Exit to Main Menu")
         program_mode = input('\nChoose mode : ')
 
         if program_mode.strip() == '1':    # see gift list
@@ -424,19 +430,19 @@ def group_operations(group_object, userID, adminMode=False):
             else:
                 print("NOT TOO LATE")
 
-
-            print("PAMIĘTAJ O DODANIU WARUNKU Z DATĄ (PRZEKROCZENIE DEADLINE)")
             # check if current date is before deadline
+            print("PAMIĘTAJ O DODANIU WARUNKU Z DATĄ (PRZEKROCZENIE DEADLINE)")
 
+            # Wishlist edit type question:
             print("Now you will edit your wishes.")
-            typeOfEdit = input("\nPress [a] for change all gifts or [s] for change gifts one by one: ")
             while True:
+                typeOfEdit = input("\nPress [a] for change all gifts or [s] for change gifts one by one: ")
                 # user wants to overwrite gift list- we run add_gifts function but in edit mode
                 if typeOfEdit.strip().lower() == 'a':
                     add_gifts(userID, group_object.groupID, editmode = True)
                     break
 
-                # editing list one by one
+                # edit list one by one:
                 elif typeOfEdit.strip().lower() == 's':
                     print("\nYou'll be changing gift in the wish list one by one.")
 
@@ -458,9 +464,9 @@ def group_operations(group_object, userID, adminMode=False):
                             print(f"Gift no. {n + 1}. name: {gift_instance.name:<20}Gift description: {gift_instance.description}")
 
                             # asking if user wants to change this gift:
-                            prompt = "Do you want to replace this gift? Press [y] if yes, [d] for erase this wish. Press ENTER if you want to leave this gift: "
-                            goFurther = input(prompt)
+                            prompt = "Do you want to replace this gift? Press [y] if yes, [d] for delete this wish. Press ENTER if you want to leave this gift in wishlist: "
                             while True:
+                                goFurther = input(prompt)
                                 if goFurther == "":
                                     gifts.append(gift_instance)
                                     break
@@ -476,9 +482,10 @@ def group_operations(group_object, userID, adminMode=False):
                                     break
                                 else:
                                     print("Incorrect input.")
+                                    continue
                         # now case when current position of gift list is NULL
                         else:
-                            prompt2 = f"\nGift no. {n + 1}. is empty. Do you want to set new wish? (y/n)"
+                            prompt2 = f"\nGift no. {n + 1}. is empty. Do you want to set new wish? (y/n): "
                             goFurther2 = input(prompt2)
 
                             if goFurther2.strip().lower() == 'y':
@@ -493,11 +500,20 @@ def group_operations(group_object, userID, adminMode=False):
                             else:
                                 print("Incorrect input.")
 
-                    # check if there is no empty list
+                    # check if there is no empty list. If yes- then starts add_gifts() function to add at least one gift.
                     if len(gifts) == 0:
                         print("Your gift list is empty. Please set up at least one gift :) ")
                         add_gifts(userID, group_object.groupID, editmode=True)
                         break
+
+                    # for gift in gifts:
+                    #     if gift != None:
+                    #         gift_json = json.dumps(gift.__dict__)  # serialize object attributes in JSON notation
+                    #         gifts_jsons.append(gift_json)  # contain JSON in list
+                    #     else:
+                    #         pass
+
+                    nonNoneGifts = len(gifts) # number of none gift to pass to db
 
                     # loop for adding empty positions to list
                     while len(gifts) < len(db_gifts_columns):
@@ -517,17 +533,117 @@ def group_operations(group_object, userID, adminMode=False):
                     sql_query = f"UPDATE group_members SET {set_clauses} WHERE groupID = %s AND userID = %s;"
                     params = gifts_jsons + [group_object.groupID, userID]
                     cursor.execute(sql_query, params)
+
+                    # update number of gifts in db
+                    cursor.execute("UPDATE group_members SET number_of_gifts = %s WHERE groupID = %s AND userID = %s",
+                                   (nonNoneGifts, group_object.groupID, userID))
+
                     db_connection.commit()
                     break
                 else:
                     print('Input incorrect.\nTry again.\n')
 
+        elif program_mode.strip() == '3' and group_object.adminID == userID: # options only for admins
+            run_mixer(group_object)
 
-        elif program_mode.strip() == '3':  # exit
+        elif program_mode.strip().lower() == 'e':  # exit
             return
-            # elif program_mode.strip() == '3':  # Settings
+
         else:
-            print("Wrong input- choose option 1, 2 or 3.\n")
+            print("Wrong input. Choose correct option.\n")
+
+def run_mixer(group_object):
+
+    # fetching usersID from selected group who passed wishlist
+    query = "SELECT userID FROM group_members WHERE groupID = %s AND number_of_gifts > 0;"
+    cursor.execute(query, (group_object.groupID,))
+    dbfetch = cursor.fetchall()
+    giceivers = [i[0] for i in dbfetch] #retrieving users id from db fetch
+    print(giceivers)
+    giverList = giceivers.copy() # giverList = []  # list for contain userID which will buy gift
+    receiverList = giceivers.copy() # receiverList = []  # list for contain userID to whom gift will be bought
+    del giceivers
+    giftPassPairs = []  # list for contain dicts {giver:receiver}
+    giftPassWishlist = []  # list for contain dicts {giver:gift list}
+
+    # pulling wishlists
+    # query for fetching gift list from db
+    query = f"SELECT userID, gift_1, gift_2, gift_3 FROM group_members WHERE groupID = %s AND number_of_gifts > 0;"
+    cursor.execute(query, (group_object.groupID,))
+    db_fetch = cursor.fetchall()
+    # wishesList = [] # list for contain each user wishlist
+    wishesList = {} # dict for contain each user wishlist
+
+    for row in db_fetch:
+        key = row[0]
+        values = []
+        n = 1
+        for n in range(1,4):
+            values.append(row[n])
+        # creating dict {userID: wishlist}
+        userWishes = {key:values}
+        # wishesList.append(userWishes) # adding dict to list
+        wishesList.update(userWishes) # adding dict to list
+
+    # for wish in wishesList:
+    #     print(wish)
+    print(wishesList)
+
+# Running mixer- creating pairs giver-receiver and giver-wishlist to buy
+    # iterating till lists contain only 2 elements:
+    while len(giverList) > 2:
+        currentGiver = giverList[0]
+        # condition to pass current giverID to the end of the list of receivers
+        if currentGiver in receiverList:
+            receiverList.remove(currentGiver)
+            receiverList.append(currentGiver)
+
+        receiverPosition = random.randint(0, len(receiverList) - 2)  # pick random list position of receiver
+        currentRecveiver = receiverList.pop(receiverPosition)  # ID of receiver
+        passPair = {currentGiver: currentRecveiver}  # joining IDs into dictionary
+        passWishlist = {currentGiver: wishesList.get(currentRecveiver)}
+        giftPassPairs.append(passPair)  # passing pair giver-receiver to the list
+        giftPassWishlist.append((passWishlist)) # passing pair giver-receiver wishlist to the list
+        giverList.pop(0)  # removing giver ID from list
+
+    # now 2 positions in lists left
+    # if first positions in both lists are the same- then tuple swaps an order
+    if giverList[0] == receiverList[0]:
+        (receiverList[0], receiverList[1]) = (receiverList[1], receiverList[0])
+
+    # creates pair or two last giver ID's
+    while len(giverList) > 0:
+        passWishlist = {giverList[0]: wishesList.get(receiverList[0])}
+        passPair = {giverList.pop(0): receiverList.pop(0)}
+        giftPassPairs.append(passPair)
+        giftPassWishlist.append(passWishlist)
+
+    x = 0
+    for x in range (0,len(giftPassPairs)):
+        print(giftPassPairs[x])
+        print(giftPassWishlist[x])
+
+# Pushing obtained lists to db:
+    # 1. Passing giver-receiver list to groups_table:
+    giceivers_json = json.dumps(giftPassPairs) # serialize object attributes in JSON notation
+    query = f"UPDATE groups_table SET giver_receiver_pairs = %s WHERE groupID = %s"
+    cursor.execute(query,(giceivers_json, group_object.groupID))
+    db_connection.commit()
+
+    # 2. Passing giver-wishlist to buy
+
+    n = 0
+    for n in range(0,len(giftPassWishlist)):
+        for gft in  giftPassWishlist[n].values():
+            wishesList_json = json.dumps(gft)
+            print(wishesList_json)
+        givers = list(giftPassWishlist[n].keys())
+        giverID = givers[0]
+
+        query = f"UPDATE group_members SET gifts_to_buy = %s WHERE groupID = %s AND userID = %s"
+        params = (wishesList_json, group_object.groupID, giverID)
+        cursor.execute(query, params)
+        db_connection.commit()
 
 
 def main_menu():
@@ -543,7 +659,7 @@ def main_menu():
             mygroups = my_groups(userID)
         # elif program_mode.strip() == '3':  # Settings
         else:
-            print("Wrong input- choose option 1, 2, 3 or 4.\n")
+            print("Wrong input. Try again.\n")
 
 if __name__ == "__main__":
     main_menu()

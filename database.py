@@ -1,5 +1,5 @@
 #GiftMixer project
-#R32NOR | anklebiters.
+#R32NOR | anklebyters.
 #2024
 
 ### DATABASES ###
@@ -10,9 +10,8 @@ import configparser
 import os
 import mysql.connector
 
-
-# pass data are in file under filepath: ~/config/ignored/passdata.ini, to cover sensitive data
-config_file_path = os.path.expanduser("config/ignored/passdata.ini")
+# pass data are in file under filepath: ~/config/ignored/config.ini, to cover sensitive data
+config_file_path = os.path.expanduser("config/ignored/config.ini")
 # parse the configuration file
 config = configparser.ConfigParser()
 config.read(config_file_path)
@@ -131,6 +130,7 @@ def creating_tables(db_connection, cursor):
                        deadline DATETIME NOT NULL, \
                        remarks VARCHAR(255),\
                        usersFinished INT,\
+                       giver_receiver_pairs JSON,\
                        PRIMARY KEY(groupID),\
                        FOREIGN KEY (adminID) REFERENCES users(userID) ON DELETE SET NULL\
                        ) AUTO_INCREMENT = 200000000;"
@@ -146,6 +146,8 @@ def creating_tables(db_connection, cursor):
     gift_1 JSON,\
     gift_2 JSON,\
     gift_3 JSON,\
+    number_of_gifts INT,\
+    gifts_to_buy JSON,\
     PRIMARY KEY (groupID, userID),\
     FOREIGN KEY (groupID) REFERENCES groups_table (groupID),\
     FOREIGN KEY (userID) REFERENCES users (userID)\

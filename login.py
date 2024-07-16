@@ -238,13 +238,13 @@ def login():
            :return None
            """
 
-    userMail = 'c@c.pl' #input("Enter user e-mail: ")
+    userMail = 'd@d.pl' #input("Enter user e-mail: ")
     if not user_exists(userMail):
         print('User does not exist.')
         return False
     else:
         while True:
-            passwd = 'S,!Rl("9zp<8xD"2' #getpass("Password: ")
+            passwd = "n}bXf)bO{H)U'5O^" #getpass("Password: ")
             if not authenticate_user(userMail, passwd):
                 print("Password incorrect.")
             elif authenticate_user(userMail, passwd):

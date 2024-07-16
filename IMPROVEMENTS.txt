@@ -1,6 +1,8 @@
   
 
 
+# Ogarnąć temat dat- bo teraz przy zakładaniu grupy zapisują się jako offset-naive, spróbować je przekształcić do offset-aware datetime
+
 
 File "S:\01Repos\ownProjects\GiftMixer\main.py", line 418, in group_operations
     if currentLocalTime > group_object.deadline:

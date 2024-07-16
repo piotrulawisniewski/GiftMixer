@@ -1,5 +1,5 @@
 #GiftMixer project
-#R32NOR | anklebiters.
+#R32NOR | anklebyters.
 #2024
 
 # file containing class information
@@ -8,7 +8,7 @@ import datetime
 import tzlocal
 import secrets
 import string
-import json
+
 
 
 import database
