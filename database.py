@@ -1,5 +1,5 @@
 #GiftMixer project
-#R32NOR | anklebyters.
+#R32NOR | bilebyters.
 #2024
 
 ### DATABASES ###
@@ -10,7 +10,7 @@ import configparser
 import os
 import mysql.connector
 
-# pass data are in file under filepath: ~/config/ignored/config.ini, to cover sensitive data
+# pull data are in file under filepath: ~/config/ignored/config.ini, to cover sensitive data
 config_file_path = os.path.expanduser("config/ignored/config.ini")
 # parse the configuration file
 config = configparser.ConfigParser()

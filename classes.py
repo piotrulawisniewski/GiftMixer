@@ -1,5 +1,5 @@
 #GiftMixer project
-#R32NOR | anklebyters.
+#R32NOR | bilebyters.
 #2024
 
 # file containing class information

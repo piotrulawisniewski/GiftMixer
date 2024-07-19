@@ -1,5 +1,5 @@
 #GiftMixer project
-#R32NOR | anklebyters.
+#R32NOR | bilebyters.
 #2024
 
 ### FUNCTIONS ###
@@ -11,6 +11,14 @@ import datetime as dt
 import tzlocal
 from datetime import datetime
 import pytz
+
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.header import Header
+from email.utils import formataddr
+import configparser
 
 
 local_timezone = tzlocal.get_localzone()
@@ -108,4 +116,96 @@ print(timezone1)
 
 '''
 
+# Send email (one) function to push mails to users in the group
+def send_email(recipient_email, subject, body):
 
+    # pull data are in file under filepath: ~/config/ignored/config.ini, to cover sensitive data
+    config_file_path = os.path.expanduser("config/ignored/config.ini")
+    # parse the configuration file
+    config = configparser.ConfigParser()
+    config.read(config_file_path)
+
+    # pulling discreet data from config file
+
+    host = config['email']['host']
+    port = config['email']['port']
+    sender_email = config['email']['sender_email']
+    sender_name = config['email']['sender_name']
+    sender_password = config['email']['sender_password']
+
+
+    # Create email message
+    msg = MIMEMultipart()
+    msg['From'] = formataddr((str(Header(sender_name, 'utf-8')),sender_email))
+    msg['To'] = recipient_email
+    msg['Subject'] = Header(subject, 'utf-8') # encode the subject with UTF-8
+
+    # email body
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+
+    try:
+        # connect to SMTP server
+        server = smtplib.SMTP(host, port)
+        server.starttls()  # connection encrypting
+
+        # log into the STMP server
+        server.login(sender_email, sender_password)
+
+        # send email
+        server.sendmail(sender_email, recipient_email, msg.as_string())
+        print("email sent successfully!")
+
+        # disconnect from the SMTP server
+        server.quit()
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+
+# Send many emails function to push mails to users in the group
+def send_emails(recipients_list, subject, body):
+
+    # pull data are in file under filepath: ~/config/ignored/config.ini, to cover sensitive data
+    config_file_path = os.path.expanduser("config/ignored/config.ini")
+    # parse the configuration file
+    config = configparser.ConfigParser()
+    config.read(config_file_path)
+
+    # pulling discreet data from config file
+
+    host = config['email']['host']
+    port = config['email']['port']
+    sender_email = config['email']['sender_email']
+    sender_name = config['email']['sender_name']
+    sender_password = config['email']['sender_password']
+
+    # Create email message
+    msg = MIMEMultipart()
+    msg['From'] = formataddr((str(Header(sender_name, 'utf-8')),sender_email))
+    msg['Subject'] = Header(subject, 'utf-8') # encode the subject with UTF-8
+
+    # email body
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+
+    try:
+        # connect to SMTP server
+        server = smtplib.SMTP(host, port)
+        server.starttls()  # connection encrypting
+
+        # log into the STMP server
+        server.login(sender_email, sender_password)
+
+        # iterating trough recipients list and sending emails:
+        for recipient_email in recipients_list:
+            msg['To'] = recipient_email
+            server.sendmail(sender_email, recipient_email, msg.as_string())
+            wait = input('wait...')
+
+        print("Emails sent successfully!")
+
+        # disconnect from the SMTP server
+        server.quit()
+
+    except Exception as e:
+        print(f"Error: {e}")
