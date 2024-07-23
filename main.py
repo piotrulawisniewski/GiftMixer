@@ -592,13 +592,12 @@ def run_mixer(group_object):
     mail_addresses = {} # dict for contain IDs, nicknames and mails
     for pos in db_fetch:
         pair = {pos[0]:(pos[1], pos[2])} # creating pair with ID and tuple (nickname and email of giver)
-        mail_addresses.update(pair) # adding position do dict
+        mail_addresses.update(pair) # adding pair do dict
+
+    print(mail_addresses)
 
 #############________________TU JESTEŚMY TERAZ- trzeba dokończyć temat zapisywania giftPassWishlist wzbogacone o nickname i mail givera,\
     # następnie przekazać do do mailingu do wysyłki__________________________________________________________________________
-
-
-
 
 # START MIXER- creating pairs giver-receiver and giver-wishlist to buy
     # iterating till lists contain only 2 elements:
@@ -612,7 +611,9 @@ def run_mixer(group_object):
         receiverPosition = random.randint(0, len(receiverList) - 2)  # pick random list position of receiver
         currentRecveiver = receiverList.pop(receiverPosition)  # ID of receiver
         passPair = {currentGiver: currentRecveiver}  # joining IDs into dictionary
-        currentWishlist = {currentGiver: wishesList.get(currentRecveiver)}
+        giverNick = mail_addresses.get(currentGiver)[0]
+        giverMail = mail_addresses.get(currentGiver)[1]
+        currentWishlist = {currentGiver: (giverNick, giverMail, wishesList.get(currentRecveiver))}
         giftPassPairs.append(passPair)  # passing pair giver-receiver to the list
         giftPassWishlist.append((currentWishlist)) # passing pair giver-receiver wishlist to the list
         giverList.pop(0)  # removing giver ID from list
@@ -624,15 +625,19 @@ def run_mixer(group_object):
 
     # creates pair or two last giver ID's
     while len(giverList) > 0:
-        currentWishlist = {giverList[0]: wishesList.get(receiverList[0])}
+        currentGiver = giverList[0]
+        # currentWishlist = {giverList[0]: wishesList.get(receiverList[0])}
+        giverNick = mail_addresses.get(currentGiver)[0]
+        giverMail = mail_addresses.get(currentGiver)[1]
+        currentWishlist = {currentGiver: (giverNick, giverMail, wishesList.get(currentRecveiver))}
         passPair = {giverList.pop(0): receiverList.pop(0)}
         giftPassPairs.append(passPair)
         giftPassWishlist.append(currentWishlist)
 
-    x = 0
-    for x in range (0,len(giftPassPairs)):
-        print(giftPassPairs[x])
-        print(giftPassWishlist[x])
+    # x = 0
+    # for x in range (0,len(giftPassPairs)):
+    #     print(giftPassPairs[x])
+    #     print(giftPassWishlist[x])                                DO WYJEBANIA!!!!!!!!!!!!!!!!!!!!!!!!
 
 # Pushing obtained lists to db:
     # 1. Passing giver-receiver list to groups_table:
@@ -642,7 +647,6 @@ def run_mixer(group_object):
     db_connection.commit()
 
     # 2. Passing giver-wishlist to buy
-
     n = 0
     for n in range(0,len(giftPassWishlist)):
         for gft in  giftPassWishlist[n].values():
@@ -656,32 +660,32 @@ def run_mixer(group_object):
         db_connection.commit()
 
 
-
-
-
-
         # MAILING (Send emails to givers)
 
+    maildata = {}  # dict for contain mails, nicks and wishlists to buy
+    i = 0
+    for i in range(len(giftPassWishlist)):
+        gvrID = list(giftPassWishlist[i].keys())[0]  # taking ID from list
 
-    # maildata = {}  # dict for contain mails, nicks and wishlists to buy
-    # i = 0
-    # for i in range(len(giftPassWishlist)):
-    #     gvrID = list(giftPassWishlist[i].keys())[0]  # taking ID from list
-    #     gvrTuple = mail_dict.get(gvrID)  # pulling tuple with mail and nick
-    #     gvrMail = gvrTuple[0]  # retrieve giver mail
-    #     gvrName = gvrTuple[1]  # retrieve giver nick
-    #     rcvr_wishlist = list(giftPassWishlist[i].values())[0]  # retrieve wishlist of gifts to buy for other one
-    #     mailDataSingle = {gvrMail: (gvrName, rcvr_wishlist)}  # insert above attributes into dictionary
-    #     maildata.update(mailDataSingle)
-    #
-    # print(maildata)
+        gvrTuple = list(giftPassWishlist[i].values())[0]
+        gvrName = gvrTuple[0]  # retrieve giver nick
+        gvrMail = gvrTuple[1]  # retrieve giver mail
+        rcvr_wishlist = gvrTuple[2]  # retrieve wishlist of gifts to buy for other one
+        mailDataSingle = {gvrMail: (gvrName, rcvr_wishlist)}  # insert above attributes into dictionary
+        maildata.update(mailDataSingle)
+
+    recipients = list(maildata.keys())
+    print(recipients)
+    print(maildata)
 
 
 
 
 
-    # recipients = list(maildata.keys())
-    # subject = "A więc to tak działa- piotrekwisniewski.pl"
+
+
+
+    subject = "A więc to tak działa- piotrekwisniewski.pl"
     # body = "Jeszcze więcej buziaków:*"
     #
     # giceivers = []

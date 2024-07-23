@@ -10,7 +10,6 @@ import secrets
 import string
 
 
-
 import database
 
 #connection to database
@@ -38,14 +37,6 @@ class User:
         self.userID = userID
         self.MyGroups = []
 
-
-    # @classmethod
-    # def get_next_ID(cls):
-    #     cls.lastID +=1
-    #     return cls.lastID
-
-# userTemp = User(userName='', userMail='', userPassword='')
-
 class Group:
     def __init__(self,groupName, adminID):
 
@@ -65,6 +56,22 @@ class Gift:
     def __init__(self, name, description):
         self.name = name
         self.description = description
+
+
+class User_Mail_Data:
+    def __init__(self, userID, nick, userMail, wishlist_to_buy):
+        self.ID = userID
+        self.nick = nick
+        self.mail = userMail
+        self.wishlist = wishlist_to_buy
+
+
+
+
+
+# class Many_Mails:
+#     def __init__(self, recipients_list, ):
+#         self.recipients = recipients_list
 
 
 

@@ -164,7 +164,7 @@ def send_email(recipient_email, subject, body):
 
 
 # Send many emails function to push mails to users in the group
-def send_emails(recipients_list, subject, body):
+def send_emails_general(recipients_list, subject, body):
 
     # pull data are in file under filepath: ~/config/ignored/config.ini, to cover sensitive data
     config_file_path = os.path.expanduser("config/ignored/config.ini")
@@ -179,6 +179,55 @@ def send_emails(recipients_list, subject, body):
     sender_email = config['email']['sender_email']
     sender_name = config['email']['sender_name']
     sender_password = config['email']['sender_password']
+
+    # Create email message
+    msg = MIMEMultipart()
+    msg['From'] = formataddr((str(Header(sender_name, 'utf-8')),sender_email))
+    msg['Subject'] = Header(subject, 'utf-8') # encode the subject with UTF-8
+
+    # email body
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+
+    try:
+        # connect to SMTP server
+        server = smtplib.SMTP(host, port)
+        server.starttls()  # connection encrypting
+
+        # log into the STMP server
+        server.login(sender_email, sender_password)
+
+        # iterating trough recipients list and sending emails:
+        for recipient_email in recipients_list:
+            msg['To'] = recipient_email
+            server.sendmail(sender_email, recipient_email, msg.as_string())
+            wait = input('wait...')
+
+        print("Emails sent successfully!")
+
+        # disconnect from the SMTP server
+        server.quit()
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def send_emails_projectSpecific1(recipients_list, maildata):
+
+    # pull data are in file under filepath: ~/config/ignored/config.ini, to cover sensitive data
+    config_file_path = os.path.expanduser("config/ignored/config.ini")
+    # parse the configuration file
+    config = configparser.ConfigParser()
+    config.read(config_file_path)
+
+    # pulling discreet data from config file
+
+    host = config['email']['host']
+    port = config['email']['port']
+    sender_email = config['email']['sender_email']
+    sender_name = config['email']['sender_name']
+    sender_password = config['email']['sender_password']
+
+    subject = f"Hello {nick}, "
 
     # Create email message
     msg = MIMEMultipart()
