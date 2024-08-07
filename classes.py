@@ -8,6 +8,7 @@ import datetime
 import tzlocal
 import secrets
 import string
+from collections import OrderedDict    # module to ensure the order of class keys
 
 
 import database
@@ -58,20 +59,37 @@ class Gift:
         self.description = description
 
 
-class User_Mail_Data:
-    def __init__(self, userID, nick, userMail, wishlist_to_buy):
-        self.ID = userID
+class Giver_data():
+    def __init__(self, giverID, mail = None, nick = None, groupName = None, wishlist_to_buy = None):
+        self.ID = giverID
+        self.mail = mail
         self.nick = nick
-        self.mail = userMail
+        self.groupName = groupName
         self.wishlist = wishlist_to_buy
 
+    def to_ordered_dict(self):
+        return OrderedDict([
+            ("ID", self.ID),
+            ("mail", self.mail),
+            ("nick", self.nick),
+            ("groupName", self.groupName),
+            ("whishlist", self.wishlist)
+        ])
 
 
 
 
-# class Many_Mails:
-#     def __init__(self, recipients_list, ):
-#         self.recipients = recipients_list
+
+
+
+
+
+
+
+
+
+
+
 
 
 

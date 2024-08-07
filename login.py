@@ -5,8 +5,13 @@ import secrets
 import string
 import hashlib
 import re
-# import mysql.connector
-# import os
+import os
+import signal
+import time
+import configparser
+
+import mysql.connector
+from mysql.connector import errorcode
 # import configparser
 # import datetime
 import sys
@@ -24,6 +29,12 @@ db_connection = database.db_switch_on()
 cursor = db_connection.cursor()
 database.creating_tables(db_connection, cursor)
 
+
+# pull data are in file under filepath: ~/config/ignored/config.ini, to cover sensitive data
+config_file_path = os.path.expanduser("config/ignored/config.ini")
+# parse the configuration file
+config = configparser.ConfigParser()
+config.read(config_file_path)
 
 
 special_characters = "!@#$%^&*(),./<>?"
@@ -71,14 +82,14 @@ def user_input_password():
             password = input(user_password_help_prompt)
     return password
 
-def set_password(passwd_provider):
+def set_password(passwd_provide):
     """FUNCTION: executes appropriate function depending on how user wants to set the password
-        :param passwd_provider- A-automatic or U-by user
+        :param passwd_provide- A-automatic or U-by user
         :return password
         """
-    if passwd_provider.strip().upper() == "A":
+    if passwd_provide.strip().upper() == "A":
         passwd = generate_password(default_password_lenght) # launching auto-generate password function
-    elif passwd_provider.strip().upper() == "U":
+    elif passwd_provide.strip().upper() == "U":
         passwd = user_input_password() # launching function for typing password by user
     return passwd
 
@@ -141,10 +152,12 @@ def save_user(userMail, hashed_passwd):
             """
 
 # passing data to database
+
     cursor.execute(f"INSERT INTO users(userMail, created_at_pyTimestamp, modified_at_pyTimestamp, \
     UTC_created_at_pyTimestamp, UTC_modified_at_pyTimestamp ) VALUES ('{userMail}', \
     '{functions.py_local_timestamp()}','{functions.py_local_timestamp()}','{functions.py_utc_timestamp()}', '{functions.py_utc_timestamp()}')")
     db_connection.commit()
+
 
 # getting userID from users table
     cursor.execute(f"SELECT userID FROM users WHERE userMail='{userMail}'")
@@ -218,13 +231,13 @@ def register():
         return
 
     while True:  # prompt for check if user want to generate password or type in by own
-        passwd_set_mode = input('Set password for your account. \nType [A] for auto-generate save password or [U] if you want to set password by yourself: ')
-        if passwd_set_mode.strip().upper() in ['A', 'U']:
+        passwd_prompt = input('Set password for your account. \nType [A] for auto-generated password or [U] if you want to set password by yourself: ')
+        if passwd_prompt.strip().upper() in ['A', 'U']:
             break
         else:
-            print('Choose [A] or [B].')
+            print('Choose [A] or [U].')
 
-    passwd = set_password(passwd_set_mode) # launching chosen password input option
+    passwd = set_password(passwd_prompt) # launching chosen password input option
     hashed_passwd = hash_password(passwd)
     save_user(userMail, hashed_passwd)
 
@@ -238,27 +251,124 @@ def login():
            :return None
            """
 
-    userMail = 'd@d.pl' #input("Enter user e-mail: ")
+    userMail = 'e@e.pl'#input("Enter user e-mail: ")
     if not user_exists(userMail):
         print('User does not exist.')
         return False
     else:
         while True:
-            passwd = "n}bXf)bO{H)U'5O^" #getpass("Password: ")
+            passwd = '7^B>?Jr(&>3ZLU%0'#getpass("Password: ")
             if not authenticate_user(userMail, passwd):
                 print("Password incorrect.")
             elif authenticate_user(userMail, passwd):
                 break
-        print('Log in passed!')
+        print('\nLog in passed!')
         cursor.execute(f"SELECT userID FROM users WHERE userMail = '{userMail}'")
         current_userID = cursor.fetchone()[0]
         return current_userID
 
+def terminate_process():
+    """FUNCTION: close running script
+           :param None
+           :return None
+           """
+    try:
+        # goodbye phrase
+        print("Thank you for using GiftMixer! See you soon! :)\nPlease invite your friends to our service!\nwww.giftmixer.eu")
+
+        # Get the ID of the current process
+        pid = os.getpid()
+
+        # Try to terminate the process softly:
+        os.kill(pid, signal.SIGTERM)
+
+        # Wait 2 seconds to see if process terminates:
+        time.sleep(2)
+
+        # Check if the process is still running- kill the process if it is
+        if os.path.exists(f"/proc/{pid}"):
+            os.kill(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        print(f"No such process: {pid}")
+    except PermissionError:
+        print(f"Permission denied to terminate the process {pid}")
+    except Exception as e:
+        print(f"An error occured: {e}")
+
+#  forgotten password reset
+
+def forgotten_password():
+
+    print("\nDon't worry- sometimes everyone forgot on something :)"
+    "\nEnter email address associated with your account and we will send you instructions to reset your password.")
+
+    # email validation
+    while True:  # passes only email with correct syntax
+        mailToReset = input("Your email address: ")
+        if valid_email(mailToReset) == False:
+            print('Sorry, it seems that you enter incorrect email. Please enter a valid email address.')
+        else:
+            break
+
+    # fetching userID from db
+    cursor.execute("SELECT userID FROM users WHERE userMail = %s", (mailToReset,))
+    uID = cursor.fetchone()[0]
+
+    # launching auto-generation of password
+    passwd = set_password('A')
+    hashed_passwd = hash_password(passwd)
+
+    # passing updated password to db
+
+    sql_query = "UPDATE passwords SET userPassword = %s, modified_at_pyTimestamp = %s, UTC_modified_at_pyTimestamp = %s WHERE userID = %s "
+    params = (hashed_passwd, functions.py_local_timestamp(), functions.py_utc_timestamp(), uID)
+    cursor.execute(sql_query, params)
+    db_connection.commit()
+
+    # mail parts
+    subject = "GiftMixer password reset"
+    body = f"""Hey, 
+    
+below you will find temporary password to your GiftMixer account. 
+This is an auto-generated password- please change it after login 
+at giftmixer.eu in 'Profile settings' tab.
+
+Your temporary password:
+{passwd}
+
+Thanks for using GiftMixer!
+With \u2661 GiftMixer Team."""
+
+    # mail sending
+    functions.send_email(mailToReset, subject, body)
+
+    # final information
+    ourMail = config['email']['sender_email']
+    print(f"If your email address is saved in our database then you should receive email from us ({ourMail}) with instructions to reset your password."
+          f"\nIf you cannot see email from us- please check your spam folder.")
+
+
+    # REMARK: this is a first simple version of password reset script. \
+    # Final version should not modify password in db when mail is passing. Link to password change should be sent in mail,
+    # to prevent passwords from being maliciously changed without users awareness.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # main login/registration function:
-def main():
+def main_login():
     while True:
-        print('\n[1] Sign in \n[2] Register \n[3] Exit')
+        print('\n[1] Sign in \n[2] Register \n[3] Forgotten password \n[x] Close program')
         program_mode = input('Choose mode: ')
         if program_mode.strip() == '1':    # login for existing users
             loginReturn = login()
@@ -268,18 +378,155 @@ def main():
 
         elif program_mode.strip() == '2':  # register new user
             register() # launching register function
-        elif program_mode.strip() == '3':  # exits the program
+
+        elif program_mode.strip() == '3':  # forgotten password reset
+              forgotten_password()
+
+        elif program_mode.strip().lower() == 'x':  # exits the program
             try:
                 database.db_switch_off(db_connection, cursor)
             finally:
-                print("Thank you for using GiftMixer! See you soon! :)\nPlease invite your friends to our service!\nwww.giftmixer.eu")
-            # getting userID from users table
-            break
+                terminate_process()
+            # break
         else:
-            print("Wrong input- choose option 1, 2 or 3.\n")
+            print("Wrong input- choose option 1, 2 or x.\n")
 
+# RUN MAIN LOGIN
 if __name__ == "__main__":
-    main()
+    main_login()
+
+
+
+# other functions related to login/ profile stuff:
+
+
+# Setting nick for the user (if unknown):
+def set_user_nick(userID):
+
+    try:
+        cursor.execute(f"SELECT userNick FROM users WHERE userID=%s", (userID,))
+        result = cursor.fetchone()
+        userNick = result[0] if result else None
+
+        if not userNick:
+            while True:
+                new_Nick = functions.get_non_empty_input("\nPlease set up an unique nick for your account: ")
+                try:
+                    cursor.execute("UPDATE users SET userNick = %s WHERE userID = %s", (new_Nick, userID))
+                    db_connection.commit()
+                    print(f'Hi {new_Nick},')
+                    return new_Nick
+                except mysql.connector.IntegrityError as err:
+                    if err.errno == errorcode.ER_DUP_ENTRY:
+                        print('Chosen nick has been already occupied. Please choose another one.')
+                    else:
+                        print(f"Database error: {err}")
+        else:
+            print(f'Hi {userNick},')
+            return userNick
+
+    # error handling for both- first assign and edit:
+    except mysql.connector.Error as e:
+        print(f"Error: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
+
+# edit user nick:
+def change_nick(userID, userNick):
+
+    nn = 0
+    while True:
+        # Differentiate displaying phrase depends of iteration number:
+        if nn == 0:
+            changeNickDecision = input(f"{userNick}, do you want to change your nick? (y/n): ")
+        else:
+            changeNickDecision = input(f"Press 'y' for yes / 'n' for no: ")
+        # check user desision:
+        if changeNickDecision.strip().lower() == "y":
+            try:
+                changed_Nick = functions.get_non_empty_input("\nPlease input your new nick (remember that it has to be unique): ")
+
+                try:
+                    cursor.execute("UPDATE users SET userNick = %s WHERE userID = %s", (changed_Nick, userID))
+                    db_connection.commit()
+                    print(f'Ok, now your new nick is: {changed_Nick},')
+                    return changed_Nick
+                except mysql.connector.IntegrityError as err:
+                    if err.errno == errorcode.ER_DUP_ENTRY:
+                        print('Chosen nick has been already occupied. Please choose another one.')
+                    else:
+                        print(f"Database error: {err}")
+
+            # error handling for both- first assign and edit:
+            except mysql.connector.Error as e:
+                print(f"Error: {e}")
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+        # if user changed his/her mind then return None allow step back to submenu
+        elif changeNickDecision.strip().lower() == "n":
+            return None
+        else:
+            print("Wrong input.")
+        nn += 1
+
+
+# edit password:
+def update_password(userID, userNick):
+
+    nn = 0
+    while True:
+        # Differentiate displaying phrase depends of iteration number:
+        if nn == 0:
+            changePasswdDecision = input(f"{userNick}, do you want to change your password? (y/n): ")
+        else:
+            changePasswdDecision = input(f"Press 'y' for yes / 'n' for no: ")
+        # check user decision:
+        if changePasswdDecision.strip().lower() == "y":
+            try:
+                while True:  # prompt for check if user want to generate password or type in by own
+                    passwd_prompt = input(
+                        'Set new password for your account. \nType [A] for auto-generated password or [U] if you want to set password by yourself: ')
+                    if passwd_prompt.strip().upper() in ['A', 'U']:
+                        break
+                    else:
+                        print('Wrong input. Choose [A] or [U].')
+
+                passwd = set_password(passwd_prompt)  # launching chosen password input option
+                hashed_passwd = hash_password(passwd)
+
+                # passing updated password to db
+
+                sql_query = "UPDATE passwords SET userPassword = %s, modified_at_pyTimestamp = %s, UTC_modified_at_pyTimestamp = %s WHERE userID = %s "
+                params = (hashed_passwd, functions.py_local_timestamp(), functions.py_utc_timestamp(), userID )
+                cursor.execute(sql_query, params)
+                db_connection.commit()
+
+                print('Password changed successfully!')
+                print('Your current password is: ', passwd)
+
+            # error handling for both- first assign and edit:
+            except mysql.connector.Error as e:
+                print(f"Error: {e}")
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+            break
+        # if user changed his/her mind then return None allow step back to submenu
+        elif changePasswdDecision.strip().lower() == "n":
+            return None
+        else:
+            print("Wrong input.")
+        nn += 1
+
+
+
+
+
+
+
+
+
+
 
 
 
