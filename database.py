@@ -1,5 +1,5 @@
 #GiftMixer project
-#R32NOR | bilebyters.
+#R32NOR | ZOLCBYTERS
 #2024
 
 ### DATABASES ###
@@ -130,7 +130,7 @@ def creating_tables(db_connection, cursor):
                        deadline DATETIME NOT NULL, \
                        remarks VARCHAR(255),\
                        usersFinished INT,\
-                       giver_receiver_pairs JSON,\
+                       giver_object JSON,\
                        PRIMARY KEY(groupID),\
                        FOREIGN KEY (adminID) REFERENCES users(userID) ON DELETE SET NULL\
                        ) AUTO_INCREMENT = 200000000;"

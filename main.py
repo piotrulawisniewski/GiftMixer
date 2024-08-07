@@ -1,61 +1,51 @@
 # #GiftMixer project
-# #R32NOR | bilebyters.
+# #R32NOR | ZOLCBYTERS
 # #2024
 
 # """GiftMixer is a script that helps to split Christmas wishes to people in group.
 # One person buys only one present for only one person in the group. The reason for build it was to get one bigger gift than few smaller.
 # It prevents too much consumption, saves time on pre-christmas rush and helps to spent money wisely. """
 
-# importing libraries / general modules
+# importing libraries / modules
 
+import datetime
 import os
 import re
 import json
 import mysql.connector
-import datetime
-from mysql.connector import errorcode as err
+from mysql.connector import errorcode
 import random
+import configparser
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.header import Header
+from email.utils import formataddr
 
 
-
-
-# importing scripts
-import login # script with login, register and account management functions:
-import classes
-import database
-import functions
+# import scripts
+import login # login, register and account management functions
+import classes # classes definitions
+import database # database set up
+import functions # general purpose functions
 
 
 print('\nWelcome to Gift Mixer!')
 print('A free tool that helps to split Christmas (and not only) wishes to people in group, to reduce consumption, save time and avoid pre-christmas gift-fever and headache :) \n ')
 
 # Log in/ register at first :)
-userID = login.main()
+userID = login.main_login()
 
 # db connection
 db_connection = login.db_connection
 cursor = login.cursor
 
-# Setting nick for the user (if unknown):
-cursor.execute(f"SELECT userNick FROM users WHERE userID='{userID}'")
-userNick = cursor.fetchone()[0]
-while not  userNick:
-    new_Nick = input(f"\nPlease set up an unique nick for your account: ")
-    try:
-        cursor.execute(f"UPDATE users SET userNick = '@paramName' WHERE userID={userID}")
-        db_connection.commit()
-        print(f'Hi {new_Nick}',)
-        break
-    except mysql.connector.IntegrityError as err:
-        if err.errno == errorcode.ER_DUP_ENTRY:
-            print('Chosen nick has been already occupied. Please choose another one.')
-else:
-    print(f'Hi {userNick},')
+# run function to set nick for the user (if unknown):
+userNick = login.set_user_nick(userID)
 
 # setting User object:
-UserObj = classes.User(userID)
-
-# OPTION 1: New group setting: #########################################################################################
+user_object = classes.User(userID)
+# PART 1: New group setting: #########################################################################################
 
 # UPDATE: add try-execpt to avoid wrong input error during setting new group
 def set_group(userID):
@@ -89,7 +79,7 @@ def set_group(userID):
     db_connection.commit()
 
 
-# OPTION 2: joining to group ###########################################################################################
+# PART 2: joining to group ###########################################################################################
 
 def join_to_group(userID):
     """FUNCTION: function that joins user to group
@@ -97,8 +87,8 @@ def join_to_group(userID):
                 :return
                 """
     while True:
-        groupNumStr = input("Input 9-digit group number that you want to join (or press 'B' to step back): ")
-        if groupNumStr.strip().upper() == 'B':
+        groupNumStr = input("Input 9-digit group number that you want to join (or press 'b' to step back): ")
+        if groupNumStr.strip().lower() == 'b':
             break
         else:
             group_return = verify_groupNumber(groupNumStr)
@@ -149,8 +139,7 @@ def verify_PIN(groupID, groupName):
     else:
         print("PIN incorrect. Try again.")
 
-
-# OPTION 3: My Groups operations: ######################################################################################
+# PART 3: My Groups operations: ######################################################################################
 def my_groups(userID):
     """FUNCTION: function that enters the group management menu
                 :param userID
@@ -539,7 +528,6 @@ def group_operations(group_object, userID, adminMode=False):
                     # update number of gifts in db
                     cursor.execute("UPDATE group_members SET number_of_gifts = %s WHERE groupID = %s AND userID = %s",
                                    (nonNoneGifts, group_object.groupID, userID))
-
                     db_connection.commit()
                     break
                 else:
@@ -560,32 +548,34 @@ def run_mixer(group_object):
     query = "SELECT userID FROM group_members WHERE groupID = %s AND number_of_gifts > 0 ORDER BY userID;"
     cursor.execute(query, (group_object.groupID,))
     dbfetch = cursor.fetchall()
-    giceivers = [i[0] for i in dbfetch] #retrieving users id from db fetch
-    giverList = giceivers.copy() # giverList = []  # list for contain userID which will buy gift
-    receiverList = giceivers.copy() # receiverList = []  # list for contain userID to whom gift will be bought
-    giftPassPairs = []  # list for contain dicts {giver:receiver}
-    giftPassWishlist = []  # list for contain dicts {giver:gift list}
+    # giceivers = [i[0] for i in dbfetch] #retrieving users id from db fetch
+    giver_list= [i[0] for i in dbfetch] #retrieving users id from db fetch
+    receiver_list = giver_list.copy() # receiver_list = []  # list for contain userID to whom gift will be bought
+    giceiver_pairs = []  # list for contain dicts {giver:receiver}
+    giver_data_list = []  # list for contain giver data objects (ID, mail, nick, wishlist to buy)
 
     # prep. 2: pulling wishlists
     # query for fetching gift list from db
     query = f"SELECT userID, gift_1, gift_2, gift_3 FROM group_members WHERE groupID = %s AND number_of_gifts > 0 ORDER BY userID;"
     cursor.execute(query, (group_object.groupID,))
     db_fetch = cursor.fetchall()
-    wishesList = {} # dict for contain each user wishlist
+    wishlists = {} # dict for contain each user wishlist
     # loop for retrieving wishlists
     for row in db_fetch:
         key = row[0]
         values = []
+        # fetch gift items from db table, drop nulls and unjsonize existing ones
         n = 1
         for n in range(1,4):
-            values.append(row[n])
+            if row[n] != None:
+                unjsonized_value = json.loads(row[n])
+                values.append(unjsonized_value)
         # creating dict {userID: wishlist}
         userWishes = {key:values}
-        # wishesList.append(userWishes) # adding dict to list
-        wishesList.update(userWishes) # adding dict to list
+        wishlists.update(userWishes) # adding position to dictionary
 
     # prep. 3: fetching emails and nicknames from db for mailing
-    query_list = ", ".join(str(ids) for ids in giceivers)
+    query_list = ", ".join(str(ids) for ids in giver_list)
     query = f"SELECT userID, userNick, userMail  FROM users WHERE userID IN ({query_list}) ORDER BY userID;"
     cursor.execute(query)
     db_fetch = cursor.fetchall()
@@ -594,174 +584,116 @@ def run_mixer(group_object):
         pair = {pos[0]:(pos[1], pos[2])} # creating pair with ID and tuple (nickname and email of giver)
         mail_addresses.update(pair) # adding pair do dict
 
-    print(mail_addresses)
-
-#############________________TU JESTEŚMY TERAZ- trzeba dokończyć temat zapisywania giftPassWishlist wzbogacone o nickname i mail givera,\
-    # następnie przekazać do do mailingu do wysyłki__________________________________________________________________________
-
 # START MIXER- creating pairs giver-receiver and giver-wishlist to buy
-    # iterating till lists contain only 2 elements:
-    while len(giverList) > 2:
-        currentGiver = giverList[0]
-        # condition to pass current giverID to the end of the list of receivers
-        if currentGiver in receiverList:
-            receiverList.remove(currentGiver)
-            receiverList.append(currentGiver)
 
-        receiverPosition = random.randint(0, len(receiverList) - 2)  # pick random list position of receiver
-        currentRecveiver = receiverList.pop(receiverPosition)  # ID of receiver
-        passPair = {currentGiver: currentRecveiver}  # joining IDs into dictionary
-        giverNick = mail_addresses.get(currentGiver)[0]
-        giverMail = mail_addresses.get(currentGiver)[1]
-        currentWishlist = {currentGiver: (giverNick, giverMail, wishesList.get(currentRecveiver))}
-        giftPassPairs.append(passPair)  # passing pair giver-receiver to the list
-        giftPassWishlist.append((currentWishlist)) # passing pair giver-receiver wishlist to the list
-        giverList.pop(0)  # removing giver ID from list
+    # shuffle receiver list first, then pair giver with receiver
+    random.shuffle(giver_list)
+    #iterate trough givers and receivers lists to
+    for giver in giver_list:
+        if giver == receiver_list[0]:
+            receiver_list.append(receiver_list.pop(0))
+        receiver = receiver_list.pop(0)
+        passPair = {giver : receiver}  # joining IDs into dictionary
+        giverNick = mail_addresses.get(giver)[0]
+        giverMail = mail_addresses.get(giver)[1]
+        giver_data_object = classes.Giver_data(giver, giverMail, giverNick, group_object.groupName, wishlists.get(receiver)) # setting instance of Giver_data class
+        # append elements to lists:
+        giceiver_pairs.append(passPair)
+        giver_data_list.append(giver_data_object)
 
-    # now 2 positions in lists left
-    # if first positions in both lists are the same- then tuple swaps an order
-    if giverList[0] == receiverList[0]:
-        (receiverList[0], receiverList[1]) = (receiverList[1], receiverList[0])
-
-    # creates pair or two last giver ID's
-    while len(giverList) > 0:
-        currentGiver = giverList[0]
-        # currentWishlist = {giverList[0]: wishesList.get(receiverList[0])}
-        giverNick = mail_addresses.get(currentGiver)[0]
-        giverMail = mail_addresses.get(currentGiver)[1]
-        currentWishlist = {currentGiver: (giverNick, giverMail, wishesList.get(currentRecveiver))}
-        passPair = {giverList.pop(0): receiverList.pop(0)}
-        giftPassPairs.append(passPair)
-        giftPassWishlist.append(currentWishlist)
-
-    # x = 0
-    # for x in range (0,len(giftPassPairs)):
-    #     print(giftPassPairs[x])
-    #     print(giftPassWishlist[x])                                DO WYJEBANIA!!!!!!!!!!!!!!!!!!!!!!!!
-
-# Pushing obtained lists to db:
+    # Pushing obtained lists to db:
     # 1. Passing giver-receiver list to groups_table:
-    giceivers_pairs_json = json.dumps(giftPassPairs) # serialize object attributes in JSON notation
+    giceiver_pairs_json = json.dumps(giceiver_pairs) # serialize object attributes in JSON notation
     query = f"UPDATE groups_table SET giver_receiver_pairs = %s WHERE groupID = %s"
-    cursor.execute(query,(giceivers_pairs_json, group_object.groupID))
+    cursor.execute(query,(giceiver_pairs_json, group_object.groupID))
     db_connection.commit()
 
-    # 2. Passing giver-wishlist to buy
-    n = 0
-    for n in range(0,len(giftPassWishlist)):
-        for gft in  giftPassWishlist[n].values():
-            wishesList_json = json.dumps(gft)
-        givers = list(giftPassWishlist[n].keys())
-        giverID = givers[0]
-
-        query = f"UPDATE group_members SET gifts_to_buy = %s WHERE groupID = %s AND userID = %s"
-        params = (wishesList_json, group_object.groupID, giverID)
+    # 2. Passing giver_data_object to db:
+    # iterate trough user-objects to serialize each one as a json and push to db
+    for gvr in giver_data_list:
+        # set order of keys in class:
+        gvr_ordered = gvr.to_ordered_dict()
+        gvr_json = json.dumps(gvr_ordered)
+        # preparing mysql statement:
+        query = f"UPDATE group_members SET giver_object = %s WHERE groupID = %s AND userID = %s"
+        params = (gvr_json, group_object.groupID, gvr.ID)
         cursor.execute(query, params)
         db_connection.commit()
 
+    # MAILING (Send emails to givers)
+    def mailing_from_main():
+        # iterate trough user-objects to send personalized mail to each one
+        for giver in giver_data_list:
+            # subject setting
+            subject = f"{giver.nick} your GiftMixer group is ready! Prepare to be a real Giver and choose gift for the other one! :) "
 
-        # MAILING (Send emails to givers)
+            # email body setting
+            wshlst = giver.wishlist  # taking wishlist from object
+            wishDisplay = "\n"  # string to be put into mail
+            # iterating trough wishes to add to string
+            for wish in wshlst:
+                wishName = wish.get("name")
+                wishDesc = wish.get("description")
+                wishIndex = str(wshlst.index(wish) + 1)
+                wishDisplay = f"{wishDisplay}{wishIndex}. Gift name: {wishName}     Description: {wishDesc} \n"
 
-    maildata = {}  # dict for contain mails, nicks and wishlists to buy
-    i = 0
-    for i in range(len(giftPassWishlist)):
-        gvrID = list(giftPassWishlist[i].keys())[0]  # taking ID from list
+            # addition to body text with remark from group manager (if he/she passed it)
+            bodyAddition = ""
+            if group_object.remarks != "":
+                bodyAddition += "Additional information for the group members: " + group_object.remarks
 
-        gvrTuple = list(giftPassWishlist[i].values())[0]
-        gvrName = gvrTuple[0]  # retrieve giver nick
-        gvrMail = gvrTuple[1]  # retrieve giver mail
-        rcvr_wishlist = gvrTuple[2]  # retrieve wishlist of gifts to buy for other one
-        mailDataSingle = {gvrMail: (gvrName, rcvr_wishlist)}  # insert above attributes into dictionary
-        maildata.update(mailDataSingle)
+            # fetching group admin nick from db
+            cursor.execute("SELECT userID, userNick FROM users WHERE userID = %s", (group_object.adminID,))
+            adminData = cursor.fetchall()[0]
+            groupManagerID = adminData[0]
+            groupManagerNick = adminData[1]
 
-    recipients = list(maildata.keys())
-    print(recipients)
-    print(maildata)
+            # full body
+            body = f"""Hi {giver.nick},\n\n{group_object.groupName} group has been completed and GiftMixer shuffled wishlists for you and your friends. Now you can fulfill someone's dream by buying one of the gifts from below whishlist:
+    
+{wishDisplay}
+Remember to not wait on the last call for buying gift- do it in advance! :) Price limit in {group_object.groupName} group is {group_object.price_limit}.
 
+Your group meets on {group_object.meetingDate}.
+Place of meeting is {group_object.place}.
+{bodyAddition}
+{group_object.groupName} group manager is {groupManagerNick} ({groupManagerID}).
 
+Thanks for using GiftMixer and have a lot fun with gift exchange! ;)
+With \u2661 GiftMixer Team."""
 
-
-
-
-
-
-    subject = "A więc to tak działa- piotrekwisniewski.pl"
-    # body = "Jeszcze więcej buziaków:*"
-    #
-    # giceivers = []
-    #
-    #
-    #
-    # print(recipients)
-    #
-    # functions.send_emails(recipients, subject, body)
-
-
-
-
-
-
-
-
-
-
-
-
+            # run mailing function
+            functions.send_email(giver.mail, subject, body)
+    # run function
+    mailing_from_main()
 
 
 
+# PART 4: Profile settings
+def profile_settings():
 
+    while True:
+        print('\n[1] Change nick \n[2] Change password \n[b] Back to main menu')
+        section_mode = input('Choose mode : ')
 
+        if section_mode.strip().lower() == 'b':
+            break
 
+        elif section_mode.strip() == '1':   # nick edit
+            global userNick
+            newUserNick = login.change_nick(userID, userNick)
+            # condition to step back if user nich hasn't been changed
+            if newUserNick == None:
+                continue
+            else:
+                userNick = newUserNick  # overwiting userNick variable
+            return userNick
 
+        elif section_mode.strip() =='2':    # password edit
+            login.update_password(userID, userNick)
 
-
-
-
-
-
-
-# def send_email(sender_email, sender_password, recipient_email, subject, body):
-#     # Create the email message
-#     msg = MIMEMultipart()
-#     msg['From'] = sender_email
-#     msg['To'] = recipient_email
-#     msg['Subject'] = subject
-#
-#     # Attach the email body
-#     msg.attach(MIMEText(body, 'plain'))
-#
-#     try:
-#         # Connect to the SMTP server
-#         server = smtplib.SMTP('smtp.gmail.com', 587)
-#         server.starttls()  # Secure the connection
-#
-#         # Log in to the SMTP server
-#         server.login(sender_email, sender_password)
-#
-#         # Send the email
-#         server.sendmail(sender_email, recipient_email, msg.as_string())
-#
-#         # Disconnect from the SMTP server
-#         server.quit()
-#
-#         print("Email sent successfully!")
-#     except Exception as e:
-#         print(f"Error: {e}")
-#
-# # Example usage
-# sender_email = 'your_email@gmail.com'
-# sender_password = 'your_password'
-# recipient_email = 'recipient_email@example.com'
-# subject = 'Test Email'
-# body = 'This is a test email sent from a Python script.'
-#
-# send_email(sender_email, sender_password, recipient_email, subject, body)
-
-
-
-
-
+        else:
+            print("Wrong input. Try again.\n")
 
 
 
@@ -776,15 +708,18 @@ def run_mixer(group_object):
 def main_menu():
 
     while True:
-        print('\n[1] Set new group \n[2] Join to Group \n[3] MyGroups \n[4] My Account')
+        print('\n[1] Set new group \n[2] Join to group \n[3] My groups \n[4] Profile settings \n[x] Close program')
         program_mode = input('Choose mode : ')
         if program_mode.strip() == '1':    # starting new group
             set_group(userID)
         elif program_mode.strip() == '2':    # join to group
             join_to_group(userID)
-        elif program_mode.strip() == '3':    # showing user groups
+        elif program_mode.strip() == '3':    # user group operations
             mygroups = my_groups(userID)
-        # elif program_mode.strip() == '3':  # Settings
+        elif program_mode.strip() == '4':  # profile settings
+            profile_settings()
+        elif program_mode.strip().lower() == 'x':  # close program
+            login.terminate_process()
         else:
             print("Wrong input. Try again.\n")
 
