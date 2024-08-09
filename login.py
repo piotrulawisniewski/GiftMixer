@@ -152,21 +152,21 @@ def save_user(userMail, hashed_passwd):
             """
 
 # passing data to database
-
-    cursor.execute(f"INSERT INTO users(userMail, created_at_pyTimestamp, modified_at_pyTimestamp, \
-    UTC_created_at_pyTimestamp, UTC_modified_at_pyTimestamp ) VALUES ('{userMail}', \
-    '{functions.py_local_timestamp()}','{functions.py_local_timestamp()}','{functions.py_utc_timestamp()}', '{functions.py_utc_timestamp()}')")
+    cursor.execute("INSERT INTO users(userMail, created_at_pyTimestamp, modified_at_pyTimestamp, \
+    UTC_created_at_pyTimestamp, UTC_modified_at_pyTimestamp ) VALUES (%s, %s, %s, %s, %s)", \
+    (userMail, functions.py_local_timestamp(), functions.py_local_timestamp(), functions.py_utc_timestamp(), functions.py_utc_timestamp()))
     db_connection.commit()
 
-
 # getting userID from users table
-    cursor.execute(f"SELECT userID FROM users WHERE userMail='{userMail}'")
+    cursor.execute("SELECT userID FROM users WHERE userMail = %s", (userMail,))
     idFromDB=cursor.fetchone()[0]
 
 # passing data to passwords table
     if idFromDB:
-        cursor.execute(f"INSERT INTO passwords (userID, userPassword, created_at_pyTimestamp, modified_at_pyTimestamp, UTC_created_at_pyTimestamp, UTC_modified_at_pyTimestamp) VALUES ('{idFromDB}', '{hashed_passwd}', '{functions.py_local_timestamp()}', '{functions.py_local_timestamp()}', '{functions.py_utc_timestamp()}', '{functions.py_utc_timestamp()}')")
-        db_connection.commit()
+        cursor.execute("INSERT INTO passwords (userID, userPassword, created_at_pyTimestamp, modified_at_pyTimestamp, UTC_created_at_pyTimestamp, UTC_modified_at_pyTimestamp)\
+        VALUES (%s, %s, %s, %s, %s, %s)", \
+        (idFromDB, hashed_passwd, functions.py_local_timestamp(), functions.py_local_timestamp(), functions.py_utc_timestamp(), functions.py_utc_timestamp()))
+
     else:
         print("This should never be displayed xD")
 
@@ -193,8 +193,9 @@ def authenticate_user(userMail, passwd):
                 :return T/F
                 """
 
-    cursor.execute(f"SELECT userPassword FROM passwords WHERE userID = \
-                    (SELECT userID FROM users WHERE userMail = '{userMail}')")
+    cursor.execute("SELECT userPassword FROM passwords WHERE userID = \
+                    (SELECT userID FROM users WHERE userMail = %s)", (userMail,))
+
     fetched_password = cursor.fetchone()[0]
     if fetched_password == hash_password(passwd):
         return True
@@ -263,7 +264,7 @@ def login():
             elif authenticate_user(userMail, passwd):
                 break
         print('\nLog in passed!')
-        cursor.execute(f"SELECT userID FROM users WHERE userMail = '{userMail}'")
+        cursor.execute("SELECT userID FROM users WHERE userMail = %s", (userMail,))
         current_userID = cursor.fetchone()[0]
         return current_userID
 
@@ -351,17 +352,6 @@ With \u2661 GiftMixer Team."""
     # REMARK: this is a first simple version of password reset script. \
     # Final version should not modify password in db when mail is passing. Link to password change should be sent in mail,
     # to prevent passwords from being maliciously changed without users awareness.
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -498,7 +488,7 @@ def update_password(userID, userNick):
                 # passing updated password to db
 
                 sql_query = "UPDATE passwords SET userPassword = %s, modified_at_pyTimestamp = %s, UTC_modified_at_pyTimestamp = %s WHERE userID = %s "
-                params = (hashed_passwd, functions.py_local_timestamp(), functions.py_utc_timestamp(), userID )
+                params = (hashed_passwd, functions.py_local_timestamp(), functions.py_utc_timestamp(), userID)
                 cursor.execute(sql_query, params)
                 db_connection.commit()
 
@@ -530,16 +520,4 @@ def update_password(userID, userNick):
 
 
 
-# FUTURE IMPROVEMENTS:
 
-"""   
-[1] Future: replace checking if email is in database for sending 6 (or 8) digit code sent to mail.
-It is safer cause it never shows to third party if such account exists.  
-
-[2] Future: add activate link sent to mail while registering new user
-
-[3] Future: add password replace option- and sending first password to mail instead showing it in terminal.
-
-[4] Change the user_exist function- to not show if chosen mail exists or not. Let user input mail and password- then finally return information that mail or password is wrong.
-
-"""

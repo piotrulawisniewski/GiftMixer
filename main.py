@@ -65,17 +65,20 @@ def set_group(userID):
 
 
     # Saving Group object attributes
-    cursor.execute(f"INSERT INTO groups_table(groupName, groupPIN, adminID, price_limit, place, meetingDate, deadline, remarks, usersFinished) \
-                    VALUES ('{newGroup.groupName}', '{newGroup.PIN}', '{newGroup.adminID}',\
-                    '{newGroup.price_limit}', '{newGroup.place}', '{newGroup.meetingDate}', '{newGroup.deadline}', '{newGroup.remarks}', '{newGroup.usersFinished}')")
+    cursor.execute(
+        "INSERT INTO groups_table(groupName, groupPIN, adminID, price_limit, place, meetingDate, deadline, remarks, usersFinished) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        (newGroup.groupName, newGroup.PIN, newGroup.adminID, newGroup.price_limit, newGroup.place, newGroup.meetingDate,
+         newGroup.deadline, newGroup.remarks, newGroup.usersFinished))
+
     db_connection.commit()
-    cursor.execute(f"SELECT groupID FROM groups_table WHERE groupName='{newGroupName}'")
+    cursor.execute("SELECT groupID FROM groups_table WHERE groupName=%s", (newGroupName,))
+
 
     # assign new group number to class
     newGroup.groupID = cursor.fetchone()[0]
     # add admin to group members table
-    cursor.execute(
-        f"INSERT INTO group_members (groupID, userID, groupName) VALUES ('{newGroup.groupID}', '{userID}', '{newGroup.groupName}')")
+    cursor.execute("INSERT INTO group_members (groupID, userID, groupName) VALUES (%s, %s, %s)",
+                   (newGroup.groupID, userID, newGroup.groupName))
     db_connection.commit()
 
 
@@ -133,7 +136,7 @@ def verify_PIN(groupID, groupName):
         cursor.execute("SELECT groupPIN FROM groups_table WHERE groupID=%s", (groupID,))
         dbPIN = cursor.fetchone()[0]
         if userPIN == dbPIN:
-            cursor.execute(f"INSERT INTO group_members (groupID, userID, groupName) VALUES ('{groupID}', '{userID}', '{groupName}')")
+            cursor.execute("INSERT INTO group_members (groupID, userID, groupName) VALUES (%s, %s, %s)", (groupID, userID, groupName))
             db_connection.commit()
             print(f"You are succesfully added to group {groupID}, {groupName}! Please choose MyGroups to add your wishes :)")
     else:
@@ -146,13 +149,12 @@ def my_groups(userID):
                 :return
                 """
     # searching groups where user is an admin:
-    cursor.execute(f"SELECT groupID, groupName FROM groups_table WHERE adminID={userID}")
+    cursor.execute("SELECT groupID, groupName FROM groups_table WHERE adminID=%s", (userID,))
     adminGroups = cursor.fetchall()
     # searching other groups where user is a member:
-    cursor.execute(f"SELECT groupID, groupName \
-    FROM group_members \
-    WHERE userID={userID} AND groupID NOT IN (\
-    SELECT groupID FROM groups_table WHERE adminID={userID}) ")
+    cursor.execute(
+        "SELECT groupID, groupName FROM group_members WHERE userID=%s AND groupID NOT IN (SELECT groupID FROM groups_table WHERE adminID=%s) ",
+        (userID, userID))
     otherGroups = cursor.fetchall()
 
     allGroups = [i[0] for i in adminGroups]+[j[0] for j in otherGroups]
@@ -205,17 +207,15 @@ def enter_the_group(userID, allGroups, chosenGroup):
     if chosenGroup in allGroups:
         print(f"\nGroup {chosenGroup} information:")
         # querying for obtain group information data:
-        cursor.execute(f"SELECT * FROM groups_table WHERE groupID={chosenGroup}")
+        cursor.execute("SELECT * FROM groups_table WHERE groupID=%s", (chosenGroup,))
         groupData = cursor.fetchall()[0]    # saving collected data as a tuple
 
         # querying for group members list:
-        cursor.execute(f"\
-                        SELECT group_members.userID, users.userNick\
-                        FROM group_members \
-                        JOIN users\
-                        ON group_members.userID = users.userID\
-                        WHERE groupID = {chosenGroup}\
-                        ORDER BY group_members.userID;")
+        cursor.execute(
+            "SELECT group_members.userID, users.userNick FROM group_members \
+            JOIN users ON group_members.userID = users.userID \
+            WHERE groupID = %s \
+            ORDER BY group_members.userID;", (chosenGroup,))
         db_fetch = cursor.fetchall()
         groupMembers = [i[0] for i in db_fetch]
         groupMembersWithNicks = [i for i in db_fetch]
@@ -232,7 +232,9 @@ def enter_the_group(userID, allGroups, chosenGroup):
         group_object.remarks = groupData[8]
 
         # fetching group admin nick from db
-        cursor.execute(f"SELECT userID, userNick FROM users WHERE userID = (SELECT adminID FROM groups_table WHERE groupID = {chosenGroup})")
+        cursor.execute(
+            "SELECT userID, userNick FROM users WHERE userID = (SELECT adminID FROM groups_table WHERE groupID = %s)",
+            (chosenGroup,))
         adminData = cursor.fetchall()[0]
 
         # function for displaying group information:
@@ -281,7 +283,7 @@ def gifts_added_check(userID, groupID):
                 :param userID, groupID
                 :return T/F
                 """
-    cursor.execute(f"SELECT gift_1, gift_2, gift_3 FROM group_members WHERE groupID = {groupID} AND userID = {userID}")
+    cursor.execute("SELECT gift_1, gift_2, gift_3 FROM group_members WHERE groupID = %s AND userID = %s", (groupID, userID))
     db_fetch = cursor.fetchone()
     giftList = [i for i in db_fetch]
     # loop for check how many wishes was added do db:
@@ -394,7 +396,8 @@ def group_operations(group_object, userID, adminMode=False):
         if program_mode.strip() == '1':    # see gift list
             print("\nYour wishes:")
             # fetching current gift list from db
-            cursor.execute(f"SELECT gift_1, gift_2, gift_3 FROM group_members WHERE groupID = {group_object.groupID} AND userID = {userID}")
+            cursor.execute("SELECT gift_1, gift_2, gift_3 FROM group_members WHERE groupID = %s AND userID = %s",
+                           (group_object.groupID, userID))
             db_fetch = cursor.fetchone()
             giftListJSON = [i for i in db_fetch]
             n = 1
@@ -497,13 +500,6 @@ def group_operations(group_object, userID, adminMode=False):
                         add_gifts(userID, group_object.groupID, editmode=True)
                         break
 
-                    # for gift in gifts:
-                    #     if gift != None:
-                    #         gift_json = json.dumps(gift.__dict__)  # serialize object attributes in JSON notation
-                    #         gifts_jsons.append(gift_json)  # contain JSON in list
-                    #     else:
-                    #         pass
-
                     nonNoneGifts = len(gifts) # number of none gift to pass to db
 
                     # loop for adding empty positions to list
@@ -520,8 +516,8 @@ def group_operations(group_object, userID, adminMode=False):
                             gifts_jsons.append(None) # if object is None then insert empty position
 
                     # preparing sql query
-                    set_clauses = ", ".join([f"{db_gifts_columns[i]} = %s" for i in range(len(gifts_jsons))])
-                    sql_query = f"UPDATE group_members SET {set_clauses} WHERE groupID = %s AND userID = %s;"
+                    set_clause = ", ".join([f"{db_gifts_columns[i]} = %s" for i in range(len(gifts_jsons))])
+                    sql_query = f"UPDATE group_members SET {set_clause} WHERE groupID = %s AND userID = %s;"
                     params = gifts_jsons + [group_object.groupID, userID]
                     cursor.execute(sql_query, params)
 
@@ -727,12 +723,6 @@ if __name__ == "__main__":
     main_menu()
 
 
-
-
-
-
-# TO DO:
-# [1]!!!: Rewrite sql queries using parameterized queries
 
 
 

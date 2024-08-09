@@ -35,7 +35,7 @@ def database_creation():
     # Creating database for the project
     try:
         database = config['gmdatabase']['database']
-        cursor.execute(f"CREATE DATABASE {database}")
+        cursor.execute("CREATE DATABASE", (database,))
     except:
         pass
 
@@ -163,12 +163,6 @@ if __name__ == "__main__":
     cursor = db_connection.cursor()
     creating_tables(db_connection, cursor)
     db_switch_off(db_connection, cursor)
-
-
-
-
-
-
 
 
 # FUTURE IMPROVEMENTS:
