@@ -189,8 +189,7 @@ def my_groups(userID):
     # Choosing the group number that user want to operate in:
     while True:
         try:
-            # chosenGroup = int(input("\nChoose the group number to see group details:\n"))
-            chosenGroup = 200000007
+            chosenGroup = int(input("\nChoose the group number to see group details:\n"))
             break
         except ValueError:
             print("Incorrect value.")
@@ -272,8 +271,6 @@ def enter_the_group(userID, allGroups, chosenGroup):
                 return None
             else:
                 print("Wrong input- try again.")
-
-
     else:
         print("You are not a member of chosen group.")
 
@@ -690,16 +687,6 @@ def profile_settings():
 
         else:
             print("Wrong input. Try again.\n")
-
-
-
-
-
-
-
-
-
-
 
 def main_menu():
 
