@@ -93,34 +93,28 @@ def set_password(passwd_provide):
         passwd = user_input_password() # launching function for typing password by user
     return passwd
 
-def hash_password(passwd):
-    """FUNCTION: hashes a password using SHA-256 algorithm
-            :param passwd
-            :return hashed password
+def generate_salt() :
+    """FUNCTION: Generate a random salt
+            :param None
+            :type None
+            :return salt: random salt using os.urandom() with 16 bytes (128 bits)
+            :rtype salt: str
             """
-    passwd_bytes = passwd.encode('utf-8')
-    hashed_passwd = hashlib.sha256(passwd_bytes).hexdigest()
-    return hashed_passwd
-
-"""
-Add salt before hashing function:
-
-import hashlib
-import os
-
-def generate_salt():
-    # Generate a random salt using os.urandom() with 16 bytes (128 bits)
     return os.urandom(16)
 
-def hash_password(password, salt):
-    # Combine the password and salt
-    salted_password = password.encode() + salt
+def hash_password(passwd: str, salt: bytes):
+    """FUNCTION: hashes the salted password using SHA-256 algorithm
+            :param passwd
+            :param salt
+            :return hashed password
+            """
+    # combine password and salt
+    salted_passwd = passwd.encode('utf-8') + salt
+    hashed_passwd = hashlib.sha256(salted_passwd).hexdigest()
+    return hashed_passwd
 
-    # Hash the salted password using SHA-256
-    hashed_password = hashlib.sha256(salted_password).hexdigest()
 
-    return hashed_password
-
+"""
 def verify_password(hashed_password, stored_password, salt):
     # Hash the provided password with the stored salt
     new_hashed_password = hash_password(stored_password, salt)
@@ -145,10 +139,13 @@ else:
     print("Password is incorrect!")
 """
 
-def save_user(userMail, hashed_passwd):
+def save_user(userMail: str, hashed_passwd: str, salt: bytes) -> None:
     """FUNCTION: saves user login data to the users detail file
-            :param userMail, hashed_passwd
-            :return None
+            :param userMail: mail address that will be saved into database and used by user to log in into service
+            :type userMail: str with pattern "addresshead@domain.TLD"
+            :param hashed_passwd: hashed password (salted before)
+
+            :raises IOError: If there is an error saving the data to the database.
             """
 
 # passing data to database
@@ -163,10 +160,10 @@ def save_user(userMail, hashed_passwd):
 
 # passing data to passwords table
     if idFromDB:
-        cursor.execute("INSERT INTO passwords (userID, userPassword, created_at_pyTimestamp, modified_at_pyTimestamp, UTC_created_at_pyTimestamp, UTC_modified_at_pyTimestamp)\
-        VALUES (%s, %s, %s, %s, %s, %s)", \
-        (idFromDB, hashed_passwd, functions.py_local_timestamp(), functions.py_local_timestamp(), functions.py_utc_timestamp(), functions.py_utc_timestamp()))
-
+        cursor.execute("INSERT INTO passwords (userID, userPassword, salt, created_at_pyTimestamp, modified_at_pyTimestamp, UTC_created_at_pyTimestamp, UTC_modified_at_pyTimestamp)\
+        VALUES (%s, %s,%s, %s, %s, %s, %s)", \
+        (idFromDB, hashed_passwd, salt, functions.py_local_timestamp(), functions.py_local_timestamp(), functions.py_utc_timestamp(), functions.py_utc_timestamp()))
+        db_connection.commit()
     else:
         print("This should never be displayed xD")
 
@@ -193,15 +190,26 @@ def authenticate_user(userMail, passwd):
                 :return T/F
                 """
 
-    cursor.execute("SELECT userPassword FROM passwords WHERE userID = \
+    cursor.execute("SELECT userPassword, salt FROM passwords WHERE userID = \
                     (SELECT userID FROM users WHERE userMail = %s)", (userMail,))
 
-    fetched_password = cursor.fetchone()[0]
-    if fetched_password == hash_password(passwd):
+    db_fetch = cursor.fetchone()
+    fetched_hashed_password = db_fetch[0]
+
+    # bypass in case that salt is empty
+    if len(db_fetch) == 2 and db_fetch[1] != None:
+        fetched_salt = db_fetch[1]
+
+    else:
+        fetched_salt = ''.encode("utf-8") # encoding empty variable
+
+    if fetched_hashed_password == hash_password(passwd, fetched_salt):
         return True
     else:
         return False
     return False
+
+
 
 def valid_email(address):
     """FUNCTION: checking if email is correct
@@ -239,8 +247,9 @@ def register():
             print('Choose [A] or [U].')
 
     passwd = set_password(passwd_prompt) # launching chosen password input option
-    hashed_passwd = hash_password(passwd)
-    save_user(userMail, hashed_passwd)
+    salt = generate_salt()
+    hashed_passwd = hash_password(passwd, salt)
+    save_user(userMail, hashed_passwd, salt)
 
     print('User account created successfully!')
     print('Your password is: ', passwd)
@@ -252,13 +261,13 @@ def login():
            :return None
            """
 
-    userMail = 'e@e.pl'#input("Enter user e-mail: ")
+    userMail = 'w@w.pl'#input("Enter user e-mail: ")
     if not user_exists(userMail):
         print('User does not exist.')
         return False
     else:
         while True:
-            passwd = '7^B>?Jr(&>3ZLU%0'#getpass("Password: ")
+            passwd = 'd^5#36^<b74AijOo'#getpass("Password: ")
             if not authenticate_user(userMail, passwd):
                 print("Password incorrect.")
             elif authenticate_user(userMail, passwd):
@@ -317,7 +326,8 @@ def forgotten_password():
 
     # launching auto-generation of password
     passwd = set_password('A')
-    hashed_passwd = hash_password(passwd)
+    salt = generate_salt()
+    hashed_passwd = hash_password(passwd, salt)
 
     # passing updated password to db
 
@@ -482,18 +492,19 @@ def update_password(userID, userNick):
                     else:
                         print('Wrong input. Choose [A] or [U].')
 
-                passwd = set_password(passwd_prompt)  # launching chosen password input option
-                hashed_passwd = hash_password(passwd)
+                new_passwd = set_password(passwd_prompt)  # launching chosen password input option
+                new_salt = generate_salt()
+                hashed_passwd = hash_password(new_passwd, new_salt)
 
                 # passing updated password to db
 
-                sql_query = "UPDATE passwords SET userPassword = %s, modified_at_pyTimestamp = %s, UTC_modified_at_pyTimestamp = %s WHERE userID = %s "
-                params = (hashed_passwd, functions.py_local_timestamp(), functions.py_utc_timestamp(), userID)
+                sql_query = "UPDATE passwords SET userPassword = %s, salt =%s, modified_at_pyTimestamp = %s, UTC_modified_at_pyTimestamp = %s WHERE userID = %s "
+                params = (hashed_passwd, new_salt, functions.py_local_timestamp(), functions.py_utc_timestamp(), userID)
                 cursor.execute(sql_query, params)
                 db_connection.commit()
 
                 print('Password changed successfully!')
-                print('Your current password is: ', passwd)
+                print('Your current password is: ', new_passwd)
 
             # error handling for both- first assign and edit:
             except mysql.connector.Error as e:

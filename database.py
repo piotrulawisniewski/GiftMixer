@@ -105,6 +105,7 @@ def creating_tables(db_connection, cursor):
         cursor.execute("CREATE TABLE passwords (\
                                userID INT unsigned,\
                                userPassword VARCHAR(255) NOT NULL,\
+                               salt BINARY(16),\
                                created_at_dbTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\
                                modified_at_dbTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\
                                created_at_pyTimestamp DATETIME,\
