@@ -98,7 +98,7 @@ def join_to_group(userID):
             if group_return [0] == True:
                 groupNum = group_return[1]
                 groupName = group_return[2]
-                verify_PIN(groupNum, groupName)
+                verify_groupPIN(groupNum, groupName)
                 break
 # check provided group number:
 def verify_groupNumber(groupNumStr):
@@ -126,7 +126,7 @@ def verify_groupNumber(groupNumStr):
         return None
 
 # veryfing PIN and add user to database if correct
-def verify_PIN(groupID, groupName):
+def verify_groupPIN(groupID, groupName):
     """FUNCTION: function that verifies if PIN is correct
                 :param group number
                 :return
@@ -185,7 +185,7 @@ def my_groups(userID):
     # no groups joined:
     else:
         print("You are not a member of any group yet. \nSet up new group or join to one if you received an invitation.")
-
+        return
     # Choosing the group number that user want to operate in:
     while True:
         try:
@@ -385,7 +385,7 @@ def group_operations(group_object, userID, adminMode=False):
         print("\nOPTIONS:")
         # Displaying varies prompt in case user is admin or not.
         if adminMode == True:
-            print("[1] Preview gift list \n[2] Edit gift list \n[3] Run Gift Mixer! \n[e] Exit to Main Menu")
+            print("[1] Preview gift list \n[2] Edit gift list \n[3] Run Gift Mixer! \n[4] Remind group PIN \n[e] Exit to Main Menu")
         else:
             print("[1] Preview gift list \n[2] Edit gift list \n[e] Exit to Main Menu")
         program_mode = input('\nChoose mode : ')
@@ -526,8 +526,11 @@ def group_operations(group_object, userID, adminMode=False):
                 else:
                     print('Input incorrect.\nTry again.\n')
 
-        elif program_mode.strip() == '3' and group_object.adminID == userID: # options only for admins
+        elif program_mode.strip() == '3' and group_object.adminID == userID: # option only for admins
             run_mixer(group_object)
+
+        elif program_mode.strip() == '4' and group_object.adminID == userID: # option only for admins:
+            print(f"{group_object.groupName} group PIN is: {group_object.PIN}")
 
         elif program_mode.strip().lower() == 'e':  # exit
             return
@@ -589,7 +592,8 @@ def run_mixer(group_object):
         passPair = {giver : receiver}  # joining IDs into dictionary
         giverNick = mail_addresses.get(giver)[0]
         giverMail = mail_addresses.get(giver)[1]
-        giver_data_object = classes.Giver_data(giver, giverMail, giverNick, group_object.groupName, wishlists.get(receiver)) # setting instance of Giver_data class
+        receiverName = mail_addresses.get(receiver)[0]
+        giver_data_object = classes.Giver_data(giver, giverMail, giverNick, receiverName, group_object.groupName, wishlists.get(receiver)) # setting instance of Giver_data class
         # append elements to lists:
         giceiver_pairs.append(passPair)
         giver_data_list.append(giver_data_object)
@@ -624,11 +628,14 @@ def run_mixer(group_object):
             wshlst = giver.wishlist  # taking wishlist from object
             wishDisplay = "\n"  # string to be put into mail
             # iterating trough wishes to add to string
-            for wish in wshlst:
-                wishName = wish.get("name")
-                wishDesc = wish.get("description")
-                wishIndex = str(wshlst.index(wish) + 1)
-                wishDisplay = f"{wishDisplay}{wishIndex}. Gift name: {wishName}     Description: {wishDesc} \n"
+            try:
+                for wish in wshlst:
+                    wishName = wish.get("name")
+                    wishDesc = wish.get("description")
+                    wishIndex = str(wshlst.index(wish) + 1)
+                    wishDisplay = f"{wishDisplay}{wishIndex}. Gift name: {wishName}     Description: {wishDesc} \n"
+            except Exception as e:
+                print(f"Error occur: {e}")
 
             # addition to body text with remark from group manager (if he/she passed it)
             bodyAddition = ""
@@ -642,7 +649,7 @@ def run_mixer(group_object):
             groupManagerNick = adminData[1]
 
             # full body
-            body = f"""Hi {giver.nick},\n\n{group_object.groupName} group has been completed and GiftMixer shuffled wishlists for you and your friends. Now you can fulfill someone's dream by buying one of the gifts from below whishlist:
+            body = f"""Hi {giver.nick},\n\n{group_object.groupName} group has been completed and GiftMixer shuffled wishlists for you and your friends. Now you can fulfill {giver.receiverName} dream by buying one of the gifts from below whishlist:
     
 {wishDisplay}
 Remember to not wait on the last call for buying gift- do it in advance! :) Price limit in {group_object.groupName} group is {group_object.price_limit}.
@@ -651,6 +658,8 @@ Your group meets on {group_object.meetingDate}.
 Place of meeting is {group_object.place}.
 {bodyAddition}
 {group_object.groupName} group manager is {groupManagerNick} ({groupManagerID}).
+
+Don't forget to signt the gift with receiver nick name!
 
 Thanks for using GiftMixer and have a lot fun with gift exchange! ;)
 With \u2661 GiftMixer Team."""

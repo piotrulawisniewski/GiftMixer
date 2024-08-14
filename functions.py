@@ -51,6 +51,18 @@ def py_utc_timestamp():
     return utc_timestamp
 
 
+timestamp = py_local_timestamp()
+
+print(timestamp)
+print(timestamp.tzinfo)
+print(timestamp.isoformat())
+
+allzones = pytz.all_timezones
+print(len(allzones))
+
+for zone in allzones:
+    print(zone)
+
 
 
 ################################################################################

@@ -60,10 +60,11 @@ class Gift:
 
 
 class Giver_data():
-    def __init__(self, giverID, mail = None, nick = None, groupName = None, wishlist_to_buy = None):
+    def __init__(self, giverID, mail = None, nick = None, receiverName = None, groupName = None, wishlist_to_buy = None):
         self.ID = giverID
         self.mail = mail
         self.nick = nick
+        self.receiverName = receiverName
         self.groupName = groupName
         self.wishlist = wishlist_to_buy
 
@@ -72,6 +73,7 @@ class Giver_data():
             ("ID", self.ID),
             ("mail", self.mail),
             ("nick", self.nick),
+            ("receiverName", self.receiverName),
             ("groupName", self.groupName),
             ("whishlist", self.wishlist)
         ])
