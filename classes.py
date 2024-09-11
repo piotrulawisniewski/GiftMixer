@@ -1,5 +1,5 @@
 #GiftMixer project
-#R32NOR | bilebyters.
+#R32NOR | ZOLCBYTERS
 #2024
 
 # file containing class information
@@ -17,7 +17,6 @@ import database
 if __name__ == "__main__":
     db_connection = database.db_switch_on()
     cursor = db_connection.cursor()
-
 
 # time variables for time stamping
 

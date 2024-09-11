@@ -63,10 +63,10 @@ def user_input_password():
         :return password
         """
     user_password_prompt = "\nInput own password (type [H] to see rules for password or [A] for auto-generate password) \nYour password: "
-    user_password_help_prompt = "Password lenght must be between 8 and 16 characters.\nPassword needs to contain at least one: lowercase letter, uppercase letter, number, special character.\nYou can type 'A' for auto-generate password. \nYour password: "
+    user_password_help_prompt = "Password lenght must be between 8 and 48 characters.\nPassword needs to contain at least one: lowercase letter, uppercase letter, number, special character.\nYou can type 'A' for auto-generate password. \nYour password: "
     password = input(user_password_prompt)
     while True:
-        if ( 8 <= len(password) <= 16
+        if ( 8 <= len(password) <= 48
             and any(c.islower() for c in password)
             and any(c.isupper() for c in password)
             and any(c.isdigit() for c in password)

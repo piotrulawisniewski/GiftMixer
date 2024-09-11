@@ -8,10 +8,13 @@
 
 # importing libraries / modules
 
-import datetime
+from datetime import datetime, timezone, timedelta
 import os
 import re
 import json
+import zoneinfo
+import pytz
+
 import mysql.connector
 from mysql.connector import errorcode
 import random
@@ -53,16 +56,47 @@ def set_group(userID):
                 :param userID
                 :return newGroup object
                 """
+
+
     print('You are creating new group, that your friends can join further.')
     newGroupName = input ('Give a name to your group: ')
     # new Group object
     newGroup = classes.Group(newGroupName, userID)
     newGroup.price_limit = input("What is maximum price of gift? (don't set if you want to): ")
     newGroup.place = input("Where gifts will be exchanged?: ")
-    newGroup.meetingDate = input("When group will meet? (YYYY-MM-DD hh:mm:ss  24h format): ")
-    newGroup.deadline = input("Final call date for users to input gift propositions (YYYY-MM-DD hh:mm:ss  24h format): ")
-    newGroup.remarks = input("Any additional information for the group members: ")
 
+    # receive information about timezone
+    timezone = functions.timezone_declaration()
+
+    # get information about date and time of meeting
+    while True:
+        meeting_date_str = str(input("\nWhen group will meet? ('YYYY-MM-DD hh:mm:ss'  24h format): ")).strip()
+        meeting_date = functions.get_offset_aware_datetime(meeting_date_str,timezone.zone)
+        if meeting_date == None:
+            print("Try again.")
+            continue
+        # eligible value:
+        elif meeting_date > datetime.now(tz=timezone):
+            break
+        else:
+            print("You cannot input past date. Input an upcoming date.")
+    newGroup.meetingDate = meeting_date
+
+    # get information about date and time of deadline for passing gift list
+
+    while True:
+        deadline_str = str(input("\nFinal call date for users to input gift propositions ('YYYY-MM-DD hh:mm:ss'  24h format): ")).strip()
+        deadline = functions.get_offset_aware_datetime(deadline_str, timezone.zone)
+        if deadline == None:
+            print("Try again.")
+            continue
+        # eligible value:
+        elif deadline > datetime.now(tz=timezone):
+            break
+        else:
+            print("You cannot input past date. Input an upcoming date.")
+    newGroup.deadline = deadline
+    newGroup.remarks = input("Any additional information for the group members: ")
 
     # Saving Group object attributes
     cursor.execute(
@@ -409,19 +443,65 @@ def group_operations(group_object, userID, adminMode=False):
                 n+=1
 
         elif program_mode.strip() == '2':    # edit gift list
+            # get current local timestamp
             currentLocalTime_offsetAware = functions.py_local_timestamp()
-            currentLocalTime_offsetNaive = datetime.datetime.now()
+
+            # deadline in current group
+            deadline = group_object.deadline
+            print("is dt aware? ", functions.is_aware(deadline))
+
+            # check if datetime is naive or aware:
+            if functions.is_aware(deadline) == True:
+                pass
+            else:
+                deadline = functions.get_offset_aware_datetime(str(deadline),None)
 
             print(currentLocalTime_offsetAware)
-            print(currentLocalTime_offsetNaive)
+            print(deadline)
 
-            print(group_object.deadline)
-            if currentLocalTime_offsetNaive > group_object.deadline:
+            if currentLocalTime_offsetAware > deadline:
                 print("TOO LATE TOO LATE!")
             else:
                 print("NOT TOO LATE")
 
+
+
+
+
+
+
+
+
+
+
+            #
+            # print("deadline: ", local_timezone, type(group_object.deadline), group_object.deadline)
+            #
+            # deadline_from_db = group_object.deadline
+            # timezone_str = deadline_from_db.tzname()
+            #
+            # deadline_to_compare = functions.get_offset_aware_datetime(str(group_object.deadline),timezone_str)
+            #
+            #
+            #
+            # print(currentLocalTime_offsetAware)
+            # print(deadline_to_compare)
+            # print(timezone_str)
+            #
+            # if currentLocalTime_offsetAware > deadline_to_compare:
+            #     print("TOO LATE TOO LATE!")
+            # else:
+            #     print("NOT TOO LATE")
+
             # check if current date is before deadline
+            # deadline_fetched = functions.datetime_for_compare(group_object.groupID, userID)
+            # if deadline_fetched != None:
+            #     print(deadline_fetched)
+            #     print(type(deadline_fetched))
+
+
+
+
             print("PAMIĘTAJ O DODANIU WARUNKU Z DATĄ (PRZEKROCZENIE DEADLINE)")
 
             # Wishlist edit type question:
@@ -593,7 +673,9 @@ def run_mixer(group_object):
         giverNick = mail_addresses.get(giver)[0]
         giverMail = mail_addresses.get(giver)[1]
         receiverName = mail_addresses.get(receiver)[0]
-        giver_data_object = classes.Giver_data(giver, giverMail, giverNick, receiverName, group_object.groupName, wishlists.get(receiver)) # setting instance of Giver_data class
+        # setting instance of Giver_data class
+        giver_data_object = classes.Giver_data(
+            giver, giverMail, giverNick, receiverName, group_object.groupName, wishlists.get(receiver))
         # append elements to lists:
         giceiver_pairs.append(passPair)
         giver_data_list.append(giver_data_object)
