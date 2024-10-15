@@ -1,4 +1,5 @@
-# script to rewrite sql queries with placeholders defined with f-strings to those using % formatting and tuples to avoid sql injection attack
+# helper script to rewrite sql queries with placeholders defined with f-strings to those using % formatting and tuples
+# to avoid sql injection vulnerability
 
 import re
 
