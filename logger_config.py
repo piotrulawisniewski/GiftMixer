@@ -1,6 +1,6 @@
 # logger configuration for the project
 """
-Module setting up loggers.
+Module for setting up loggers.
 
 In case of unexpected errors handling use general block with 'logger' shown below:
 It passes short info about error to user, but not shown specified data.

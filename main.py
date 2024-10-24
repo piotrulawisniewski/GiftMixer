@@ -2,10 +2,9 @@
 # R32NOR | ZOLCBYTERS
 # 2024
 
-"""GiftMixer is a script that helps to split Christmas wishes to people in group.
+"""GiftMixer is a script that helps to split Christmas (and not only) wishes between participants in the group.
 One person buys only one present for only one person in the group. The reason for build it was to get one bigger gift
-than few smaller.
-It also prevents too much consumption, saves time on pre-christmas rush and helps to spent money wisely. """
+than few smaller. It also prevents too much consumption, saves time on pre-christmas rush and helps to spent money wisely. """
 
 # importing libraries / modules
 
